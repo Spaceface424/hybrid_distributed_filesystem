@@ -16,7 +16,7 @@ type SwimRPCserver struct {
 	shared.UnimplementedIntroducerServer
 }
 
-func StartSwimGRPCServer(host string) {
+func StartGRPCServer(host string) {
 	lis, err := net.Listen("tcp", host)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)

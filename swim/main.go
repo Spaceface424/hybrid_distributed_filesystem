@@ -31,7 +31,7 @@ func main() {
 		if introducer == "" {
 			fmt.Printf("Introducer Started at %s\n", hostname+":"+args[0])
 		}
-		go swim.StartSwimGRPCServer(hostname + ":" + args[0])
+		go swim.StartGRPCServer(hostname + ":" + args[0])
 		go swim.UDPServer(hostname+":"+args[1], introducer, verbose)
 		wait := make(chan struct{})
 		<-wait
