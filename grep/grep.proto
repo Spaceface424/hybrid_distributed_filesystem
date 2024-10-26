@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+option go_package = "./grep";
+
+service Grep {
+  rpc CallGrep (GRPCParams) returns (GrepOutput) {}
+}
+
+message GRPCParams {
+  string expr = 1;
+  string logfile = 2;
+  string hosts = 3;
+  bool headers = 4;
+  bool invert = 5;
+  bool recursive = 6;
+  bool case_insensitive = 7;
+  bool fixed = 8;
+  bool no_show_match = 9;
+  bool quiet = 10;
+  bool count = 11;
+  bool number = 12;
+}
+
+message GrepOutput {
+  string result = 1;
+}

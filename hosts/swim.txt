@@ -1,0 +1,10 @@
+fa24-cs425-1401.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.0.log
+fa24-cs425-1402.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.1.log
+fa24-cs425-1403.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.2.log
+fa24-cs425-1404.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.3.log
+fa24-cs425-1405.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.4.log
+fa24-cs425-1406.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.5.log
+fa24-cs425-1407.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.6.log
+fa24-cs425-1408.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.7.log
+fa24-cs425-1409.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.8.log
+fa24-cs425-1410.cs.illinois.edu:8000, /home/monkey/mp2/logs/node.9.log
