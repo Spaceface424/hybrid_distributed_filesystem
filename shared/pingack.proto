@@ -47,9 +47,10 @@ enum NodeState {
 
 message MemberContainer {
   int32 ID = 1;
-  bool EnableSus = 2;
-  repeated MemberInfo MemberList = 3;
-  repeated MemberInfo FailList = 4;
+  int32 Hash = 2;
+  bool EnableSus = 3;
+  repeated MemberInfo MemberList = 4;
+  repeated MemberInfo FailList = 5;
 }
 
 message MemberInfo {

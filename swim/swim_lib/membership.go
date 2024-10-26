@@ -346,6 +346,7 @@ func requestIntroducer(cur_member *shared.MemberInfo, introducer string) {
 		log.Fatalf("[FATAL] gRPC call error: %v", err)
 	}
 	cur_member.ID = response.ID
+	cur_member.Hash = response.Hash
 	for _, member := range response.MemberList {
 		members.memberMap[member.ID] = member
 	}
