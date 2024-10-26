@@ -1,0 +1,4 @@
+fa24-cs425-1401.cs.illinois.edu:8000, tests/test1.log
+fa24-cs425-1402.cs.illinois.edu:8000, tests/test2.log
+fa24-cs425-1403.cs.illinois.edu:8000, tests/test3.log
+fa24-cs425-1404.cs.illinois.edu:8000, tests/test4.log

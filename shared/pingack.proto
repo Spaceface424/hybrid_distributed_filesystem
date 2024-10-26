@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+option go_package = "./shared";
+
+service Introducer {
+  rpc RequestMembershipInfo (MemberInfo) returns (MemberContainer) {}
+  rpc SWIMcmd (SWIMIn) returns (SWIMOut) {}
+}
+
+message SWIMIn {
+  string Cmd = 1;
+  double drop_rate = 2;
+}
+
+message SWIMOut {
+  string output = 1;
+}
+
+message PingAck {
+  MessageType Type = 1;
+  int32 SenderId = 2;
+  int32 Round = 3;
+  map<int32, Gossip> GossipBuffer = 4;
+  int32 RequestId = 5;
+  int32 IncNum = 6;
+}
+
+enum MessageType {
+  PING = 0;
+  ACK = 1;
+  PING_REQ = 2;
+  IDR_PING = 3;
+  ACK_REQ = 4;
+}
+
+
+message Gossip {
+  MemberInfo Member = 1;
+  int32 TTL = 2;
+}
+
+enum NodeState {
+  ALIVE = 0;
+  FAILED = 1;
+  SUSPECT = 2;
+}
+
+message MemberContainer {
+  int32 ID = 1;
+  bool EnableSus = 2;
+  repeated MemberInfo MemberList = 3;
+  repeated MemberInfo FailList = 4;
+}
+
+message MemberInfo {
+	string Address = 1;
+	int32 ID = 2;
+  int32 Hash = 3;
+	NodeState State = 4;
+  int32 IncNum = 5;
+}
