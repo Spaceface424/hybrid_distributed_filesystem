@@ -31,23 +31,23 @@ func StartGRPCServer(host string) {
 
 func (s *SwimRPCserver) RequestMembershipInfo(ctx context.Context, member *shared.MemberInfo) (*shared.MemberContainer, error) {
 	log.Printf("Node %d requested to join", next_id)
-	Members.mu.Lock()
+	Members.Mu.Lock()
 	// failed_members.mu.Lock()
 	// gossips.mu.Lock()
 	// defer gossips.mu.Unlock()
 	// defer failed_members.mu.Unlock()
-	defer Members.mu.Unlock()
+	defer Members.Mu.Unlock()
 	// create array of members to send to new member
-	memberlist := make([]*shared.MemberInfo, len(Members.memberMap)+1)
+	memberlist := make([]*shared.MemberInfo, len(Members.MemberMap)+1)
 	memberlist[0] = cur_member
 	i := 1
-	for _, v := range Members.memberMap {
+	for _, v := range Members.MemberMap {
 		memberlist[i] = v
 		i++
 	}
-	fail_list := make([]*shared.MemberInfo, len(failed_members.memberMap))
+	fail_list := make([]*shared.MemberInfo, len(failed_members.MemberMap))
 	i = 0
-	for _, v := range failed_members.memberMap {
+	for _, v := range failed_members.MemberMap {
 		fail_list[i] = v
 		i++
 	}
@@ -62,7 +62,7 @@ func (s *SwimRPCserver) RequestMembershipInfo(ctx context.Context, member *share
 	next_id++
 
 	// add new member to current memberlist
-	Members.memberMap[member_container.ID] = member
+	Members.MemberMap[member_container.ID] = member
 	gossips.gossipMap[member_container.ID] = &shared.Gossip{
 		Member: member,
 		TTL:    TTL,
@@ -87,10 +87,10 @@ func (s *SwimRPCserver) SWIMcmd(ctx context.Context, cmd *shared.SWIMIn) (*share
 	case "list_self":
 		response.Output = fmt.Sprintf("Member ID is %d", my_ID)
 	case "list_mem":
-		member_slice := make([]int32, len(Members.memberMap)+1)
+		member_slice := make([]int32, len(Members.MemberMap)+1)
 		member_slice[0] = cur_member.ID
 		i := 1
-		for k := range Members.memberMap {
+		for k := range Members.MemberMap {
 			member_slice[i] = k
 			i++
 		}

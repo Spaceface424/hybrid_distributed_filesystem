@@ -70,10 +70,10 @@ func listenUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 			ack_chan <- pb
 		case shared.MessageType_PING:
 			log.Printf("[INFO] Received PING from node %d", pb.SenderId)
-			_, ok := Members.memberMap[pb.SenderId]
-			_, fail_ok := failed_members.memberMap[pb.SenderId]
+			_, ok := Members.MemberMap[pb.SenderId]
+			_, fail_ok := failed_members.MemberMap[pb.SenderId]
 			if !ok && !fail_ok {
-				Members.memberMap[pb.SenderId] = &shared.MemberInfo{
+				Members.MemberMap[pb.SenderId] = &shared.MemberInfo{
 					Address: addr.String(),
 					ID:      pb.SenderId,
 					State:   shared.NodeState_ALIVE,
@@ -110,11 +110,11 @@ func listenUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 				req_id:       pb.RequestId,
 			})
 		case shared.MessageType_PING_REQ:
-			if _, ok := Members.memberMap[pb.RequestId]; !ok {
+			if _, ok := Members.MemberMap[pb.RequestId]; !ok {
 				break
 			}
 			log.Printf("[INFO] Received PING_REQ from node %d to PING node %d", pb.SenderId, pb.RequestId)
-			target_addr, _ := net.ResolveUDPAddr("udp", Members.memberMap[pb.RequestId].Address)
+			target_addr, _ := net.ResolveUDPAddr("udp", Members.MemberMap[pb.RequestId].Address)
 			go sendPingAck(pingackRequest{
 				conn:         conn,
 				target_addr:  target_addr,
@@ -125,11 +125,11 @@ func listenUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 				req_id:       pb.SenderId,
 			})
 		case shared.MessageType_ACK_REQ:
-			if _, ok := Members.memberMap[pb.RequestId]; !ok {
+			if _, ok := Members.MemberMap[pb.RequestId]; !ok {
 				break
 			}
 			log.Printf("[INFO] Received ACK_REQ from node %d, fowarding ACK to node %d", pb.SenderId, pb.RequestId)
-			target_addr, _ := net.ResolveUDPAddr("udp", Members.memberMap[pb.RequestId].Address)
+			target_addr, _ := net.ResolveUDPAddr("udp", Members.MemberMap[pb.RequestId].Address)
 			go sendPingAck(pingackRequest{
 				conn:         conn,
 				target_addr:  target_addr,
@@ -156,7 +156,7 @@ func sendUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 		logMembershipList()
 		decTTL()
 		round++
-		if len(Members.memberMap) == 0 {
+		if len(Members.MemberMap) == 0 {
 			log.Printf("[INFO] No members in group...")
 			round_robin = []int32{}
 			round_timer.Reset(time.Duration(PROTOCAL_PERIOD) * time.Second)
@@ -165,7 +165,7 @@ func sendUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 		}
 
 		target_id := getRoundRobinTarget()
-		target_addr, err := net.ResolveUDPAddr("udp", Members.memberMap[target_id].Address)
+		target_addr, err := net.ResolveUDPAddr("udp", Members.MemberMap[target_id].Address)
 		if err != nil {
 			log.Panic("Dial UDP err:", err)
 		}
@@ -213,7 +213,7 @@ func sendKPingReq(conn *net.UDPConn, target_id int32, round int32) {
 		if req_id == target_id {
 			continue
 		}
-		member, ok := Members.memberMap[req_id]
+		member, ok := Members.MemberMap[req_id]
 		if !ok {
 			continue
 		}
@@ -260,13 +260,13 @@ func pingTimeout(target_id int32) {
 	log.Printf("[INFO] ACK not received in time from node %d, marking as FAILED", target_id)
 	fmt.Printf("[INFO] ACK not received in time from node %d, marking as FAILED\n", target_id)
 
-	if _, ok := failed_members.memberMap[target_id]; ok {
+	if _, ok := failed_members.MemberMap[target_id]; ok {
 		return
 	}
 
 	failNode(target_id)
 	gossips.gossipMap[target_id] = &shared.Gossip{
-		Member: failed_members.memberMap[target_id],
+		Member: failed_members.MemberMap[target_id],
 		TTL:    TTL,
 	}
 
@@ -277,7 +277,7 @@ func suspectTimeout(id int32, inc_num int32) {
 	// wait for suspect_timeout # of rounds then check if node still marked as suspect to fail
 	timer := time.NewTimer(time.Duration(SUSPECT_TIMEOUT) * time.Duration(PROTOCAL_PERIOD) * time.Second)
 	<-timer.C
-	if member, ok := Members.memberMap[id]; ok && member.IncNum == inc_num && member.State == shared.NodeState_SUSPECT {
+	if member, ok := Members.MemberMap[id]; ok && member.IncNum == inc_num && member.State == shared.NodeState_SUSPECT {
 		log.Printf("[INFO] Suspect Timeout for node %d, marking as FAILED", id)
 		fmt.Printf("[INFO] Suspect Timeout for node %d, marking as FAILED\n", id)
 		failNode(id)
@@ -285,30 +285,30 @@ func suspectTimeout(id int32, inc_num int32) {
 }
 
 func pingTimeoutSuspicion(target_id int32) {
-	if _, ok := failed_members.memberMap[target_id]; ok {
+	if _, ok := failed_members.MemberMap[target_id]; ok {
 		log.Printf("[INFO] Node %d already failed", target_id)
 		return
 	}
 
-	if Members.memberMap[target_id].State == shared.NodeState_SUSPECT {
+	if Members.MemberMap[target_id].State == shared.NodeState_SUSPECT {
 		pingTimeout(target_id)
 		return
 	}
 
 	log.Printf("[INFO] ACK not received in time from node %d, marking as SUSPECT", target_id)
 	fmt.Printf("[INFO] ACK not received in time from node %d, marking as SUSPECT\n", target_id)
-	Members.memberMap[target_id].State = shared.NodeState_SUSPECT
-	go suspectTimeout(target_id, Members.memberMap[target_id].IncNum)
+	Members.MemberMap[target_id].State = shared.NodeState_SUSPECT
+	go suspectTimeout(target_id, Members.MemberMap[target_id].IncNum)
 
 	gossips.gossipMap[target_id] = &shared.Gossip{
-		Member: Members.memberMap[target_id],
+		Member: Members.MemberMap[target_id],
 		TTL:    TTL,
 	}
 	membershipList()
 }
 
-func getRandomID() int32 {
-	return int32(rand.Uint32() % (2 << M))
+func getRandomID() uint32 {
+	return rand.Uint32() % (2 << M)
 }
 
 func requestIntroducer(cur_member *shared.MemberInfo, introducer string) {
@@ -336,10 +336,10 @@ func requestIntroducer(cur_member *shared.MemberInfo, introducer string) {
 	cur_member.ID = response.ID
 	cur_member.Hash = response.Hash
 	for _, member := range response.MemberList {
-		Members.memberMap[member.ID] = member
+		Members.MemberMap[member.ID] = member
 	}
 	for _, fail_member := range response.FailList {
-		failed_members.memberMap[fail_member.ID] = fail_member
+		failed_members.MemberMap[fail_member.ID] = fail_member
 	}
 	gossips.gossipMap[cur_member.ID] = &shared.Gossip{
 		Member: cur_member,
@@ -351,7 +351,7 @@ func requestIntroducer(cur_member *shared.MemberInfo, introducer string) {
 func updateMembership(pingack *shared.PingAck) {
 	for ID, new_gossip := range pingack.GossipBuffer {
 		cur_gossip, gossip_exists := gossips.gossipMap[ID]
-		_, member_exists := Members.memberMap[ID]
+		_, member_exists := Members.MemberMap[ID]
 
 		if ID == cur_member.ID {
 			switch new_gossip.Member.State {
@@ -373,8 +373,8 @@ func updateMembership(pingack *shared.PingAck) {
 			continue
 		}
 
-		_, failed_member_exists := failed_members.memberMap[ID]
-		if failed_member_exists && failed_members.memberMap[ID].State == shared.NodeState_FAILED {
+		_, failed_member_exists := failed_members.MemberMap[ID]
+		if failed_member_exists && failed_members.MemberMap[ID].State == shared.NodeState_FAILED {
 			continue
 		}
 
@@ -383,7 +383,7 @@ func updateMembership(pingack *shared.PingAck) {
 		}
 
 		if !member_exists {
-			Members.memberMap[ID] = new_gossip.Member
+			Members.MemberMap[ID] = new_gossip.Member
 			gossips.gossipMap[ID] = new_gossip
 			member_change_chan <- struct{}{}
 			continue
@@ -394,7 +394,7 @@ func updateMembership(pingack *shared.PingAck) {
 			failNode(ID)
 			gossips.gossipMap[ID] = new_gossip
 		case shared.NodeState_SUSPECT:
-			if new_gossip.Member.IncNum >= Members.memberMap[ID].IncNum {
+			if new_gossip.Member.IncNum >= Members.MemberMap[ID].IncNum {
 				if gossip_exists {
 					gossips.gossipMap[ID] = &shared.Gossip{
 						Member: new_gossip.Member,
@@ -403,10 +403,10 @@ func updateMembership(pingack *shared.PingAck) {
 				} else {
 					gossips.gossipMap[ID] = new_gossip
 				}
-				Members.memberMap[ID] = new_gossip.Member
+				Members.MemberMap[ID] = new_gossip.Member
 			}
 		case shared.NodeState_ALIVE:
-			if new_gossip.Member.IncNum > Members.memberMap[ID].IncNum {
+			if new_gossip.Member.IncNum > Members.MemberMap[ID].IncNum {
 				if gossip_exists {
 					gossips.gossipMap[ID] = &shared.Gossip{
 						Member: new_gossip.Member,
@@ -415,7 +415,7 @@ func updateMembership(pingack *shared.PingAck) {
 				} else {
 					gossips.gossipMap[ID] = new_gossip
 				}
-				Members.memberMap[ID] = new_gossip.Member
+				Members.MemberMap[ID] = new_gossip.Member
 			}
 		}
 	}

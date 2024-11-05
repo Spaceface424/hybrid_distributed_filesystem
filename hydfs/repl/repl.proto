@@ -4,32 +4,37 @@ option go_package = "./repl";
 
 service Replication {
   rpc RequestAsk (RequestFiles) returns (RequestMissing) {}
-  rpc RequestSend (RequestData) returns (RequestReply) {}
+  rpc RequestSend (RequestData) returns (RequestAck) {}
+  rpc RequestCreate (CreateData) returns (RequestAck) {}
+}
+
+message CreateData {
+  File NewFile = 1;
 }
 
 message RequestFiles {
-  repeated File files = 1;
+  repeated File Files = 1;
 }
 
 message RequestMissing {
-  repeated File missing_files = 1;
+  repeated File MissingFiles = 1;
 }
 
 message RequestData {
-  repeated File data_files = 1;
+  repeated File DataFiles = 1;
 }
 
-message RequestReply {
-  bool ok = 1;
+message RequestAck {
+  bool OK = 1;
 }
 
 message File {
-  string filename = 1;
-  repeated FileBlock blocks = 2;
+  string Filename = 1;
+  repeated FileBlock Blocks = 2;
 }
 
 message FileBlock {
-  int32 blockHash = 1;
-  int32 blockID = 2;
-  bytes data = 3;
+  uint32 BlockNode = 1;
+  uint32 BlockID = 2;
+  bytes Data = 3;
 }

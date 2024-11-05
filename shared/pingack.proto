@@ -56,7 +56,7 @@ message MemberContainer {
 message MemberInfo {
 	string Address = 1;
 	int32 ID = 2;
-  int32 Hash = 3;
+  uint32 Hash = 3;
 	NodeState State = 4;
   int32 IncNum = 5;
 }

@@ -13,8 +13,8 @@ import (
 )
 
 type memberContainer struct {
-	memberMap map[int32]*shared.MemberInfo
-	mu        sync.Mutex
+	MemberMap map[int32]*shared.MemberInfo
+	Mu        sync.Mutex
 }
 
 type gossipContainer struct {
@@ -41,10 +41,10 @@ func setupServer(host string, verbose_flag bool) *net.UDPConn {
 	}
 
 	members = memberContainer{
-		memberMap: make(map[int32]*shared.MemberInfo),
+		MemberMap: make(map[int32]*shared.MemberInfo),
 	}
 	failed_members = memberContainer{
-		memberMap: make(map[int32]*shared.MemberInfo),
+		MemberMap: make(map[int32]*shared.MemberInfo),
 	}
 	gossips = gossipContainer{
 		gossipMap: make(map[int32]*shared.Gossip),
@@ -81,10 +81,10 @@ func setupLogging() {
 }
 
 func logMembershipList() {
-	member_slice := make([]int32, len(members.memberMap)+1)
+	member_slice := make([]int32, len(members.MemberMap)+1)
 	member_slice[0] = cur_member.ID
 	i := 1
-	for k := range members.memberMap {
+	for k := range members.MemberMap {
 		member_slice[i] = k
 		i++
 	}
@@ -105,10 +105,10 @@ func fmtGossip(gossip_buffer *map[int32]*shared.Gossip) string {
 }
 
 func printMembershipList() {
-	member_slice := make([]*shared.MemberInfo, len(members.memberMap)+1)
+	member_slice := make([]*shared.MemberInfo, len(members.MemberMap)+1)
 	member_slice[0] = cur_member
 	i := 1
-	for _, v := range members.memberMap {
+	for _, v := range members.MemberMap {
 		member_slice[i] = v
 		i++
 	}
@@ -138,7 +138,7 @@ func membershipList() {
 
 func getRoundRobinTarget() int32 {
 	for rr_index < len(round_robin) {
-		_, ok := members.memberMap[round_robin[rr_index]]
+		_, ok := members.MemberMap[round_robin[rr_index]]
 		rr_index++
 		if !ok {
 			continue
@@ -152,9 +152,9 @@ func getRoundRobinTarget() int32 {
 }
 
 func shuffleRoundRobin() {
-	new_round_robin := make([]int32, len(members.memberMap))
+	new_round_robin := make([]int32, len(members.MemberMap))
 	i := 0
-	for id := range members.memberMap {
+	for id := range members.MemberMap {
 		new_round_robin[i] = id
 		i++
 	}
@@ -174,7 +174,7 @@ func decTTL() {
 }
 
 func failNode(id int32) {
-	failed_members.memberMap[id] = members.memberMap[id]
-	failed_members.memberMap[id].State = shared.NodeState_FAILED
-	delete(members.memberMap, id)
+	failed_members.MemberMap[id] = members.MemberMap[id]
+	failed_members.MemberMap[id].State = shared.NodeState_FAILED
+	delete(members.MemberMap, id)
 }

@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Replication_RequestAsk_FullMethodName  = "/Replication/RequestAsk"
-	Replication_RequestSend_FullMethodName = "/Replication/RequestSend"
+	Replication_RequestAsk_FullMethodName    = "/Replication/RequestAsk"
+	Replication_RequestSend_FullMethodName   = "/Replication/RequestSend"
+	Replication_RequestCreate_FullMethodName = "/Replication/RequestCreate"
 )
 
 // ReplicationClient is the client API for Replication service.
@@ -28,7 +29,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ReplicationClient interface {
 	RequestAsk(ctx context.Context, in *RequestFiles, opts ...grpc.CallOption) (*RequestMissing, error)
-	RequestSend(ctx context.Context, in *RequestData, opts ...grpc.CallOption) (*RequestReply, error)
+	RequestSend(ctx context.Context, in *RequestData, opts ...grpc.CallOption) (*RequestAck, error)
+	RequestCreate(ctx context.Context, in *CreateData, opts ...grpc.CallOption) (*RequestAck, error)
 }
 
 type replicationClient struct {
@@ -49,10 +51,20 @@ func (c *replicationClient) RequestAsk(ctx context.Context, in *RequestFiles, op
 	return out, nil
 }
 
-func (c *replicationClient) RequestSend(ctx context.Context, in *RequestData, opts ...grpc.CallOption) (*RequestReply, error) {
+func (c *replicationClient) RequestSend(ctx context.Context, in *RequestData, opts ...grpc.CallOption) (*RequestAck, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(RequestReply)
+	out := new(RequestAck)
 	err := c.cc.Invoke(ctx, Replication_RequestSend_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *replicationClient) RequestCreate(ctx context.Context, in *CreateData, opts ...grpc.CallOption) (*RequestAck, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestAck)
+	err := c.cc.Invoke(ctx, Replication_RequestCreate_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +76,8 @@ func (c *replicationClient) RequestSend(ctx context.Context, in *RequestData, op
 // for forward compatibility.
 type ReplicationServer interface {
 	RequestAsk(context.Context, *RequestFiles) (*RequestMissing, error)
-	RequestSend(context.Context, *RequestData) (*RequestReply, error)
+	RequestSend(context.Context, *RequestData) (*RequestAck, error)
+	RequestCreate(context.Context, *CreateData) (*RequestAck, error)
 	mustEmbedUnimplementedReplicationServer()
 }
 
@@ -78,8 +91,11 @@ type UnimplementedReplicationServer struct{}
 func (UnimplementedReplicationServer) RequestAsk(context.Context, *RequestFiles) (*RequestMissing, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestAsk not implemented")
 }
-func (UnimplementedReplicationServer) RequestSend(context.Context, *RequestData) (*RequestReply, error) {
+func (UnimplementedReplicationServer) RequestSend(context.Context, *RequestData) (*RequestAck, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestSend not implemented")
+}
+func (UnimplementedReplicationServer) RequestCreate(context.Context, *CreateData) (*RequestAck, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RequestCreate not implemented")
 }
 func (UnimplementedReplicationServer) mustEmbedUnimplementedReplicationServer() {}
 func (UnimplementedReplicationServer) testEmbeddedByValue()                     {}
@@ -138,6 +154,24 @@ func _Replication_RequestSend_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Replication_RequestCreate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateData)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReplicationServer).RequestCreate(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Replication_RequestCreate_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReplicationServer).RequestCreate(ctx, req.(*CreateData))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Replication_ServiceDesc is the grpc.ServiceDesc for Replication service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -152,6 +186,10 @@ var Replication_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestSend",
 			Handler:    _Replication_RequestSend_Handler,
+		},
+		{
+			MethodName: "RequestCreate",
+			Handler:    _Replication_RequestCreate_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

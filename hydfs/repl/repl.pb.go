@@ -20,18 +20,65 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type CreateData struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	NewFile *File `protobuf:"bytes,1,opt,name=NewFile,proto3" json:"NewFile,omitempty"`
+}
+
+func (x *CreateData) Reset() {
+	*x = CreateData{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_hydfs_repl_repl_proto_msgTypes[0]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *CreateData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateData) ProtoMessage() {}
+
+func (x *CreateData) ProtoReflect() protoreflect.Message {
+	mi := &file_hydfs_repl_repl_proto_msgTypes[0]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateData.ProtoReflect.Descriptor instead.
+func (*CreateData) Descriptor() ([]byte, []int) {
+	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *CreateData) GetNewFile() *File {
+	if x != nil {
+		return x.NewFile
+	}
+	return nil
+}
+
 type RequestFiles struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Files []*File `protobuf:"bytes,1,rep,name=files,proto3" json:"files,omitempty"`
+	Files []*File `protobuf:"bytes,1,rep,name=Files,proto3" json:"Files,omitempty"`
 }
 
 func (x *RequestFiles) Reset() {
 	*x = RequestFiles{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_hydfs_repl_repl_proto_msgTypes[0]
+		mi := &file_hydfs_repl_repl_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -44,7 +91,7 @@ func (x *RequestFiles) String() string {
 func (*RequestFiles) ProtoMessage() {}
 
 func (x *RequestFiles) ProtoReflect() protoreflect.Message {
-	mi := &file_hydfs_repl_repl_proto_msgTypes[0]
+	mi := &file_hydfs_repl_repl_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +104,7 @@ func (x *RequestFiles) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestFiles.ProtoReflect.Descriptor instead.
 func (*RequestFiles) Descriptor() ([]byte, []int) {
-	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{0}
+	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RequestFiles) GetFiles() []*File {
@@ -72,13 +119,13 @@ type RequestMissing struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	MissingFiles []*File `protobuf:"bytes,1,rep,name=missing_files,json=missingFiles,proto3" json:"missing_files,omitempty"`
+	MissingFiles []*File `protobuf:"bytes,1,rep,name=MissingFiles,proto3" json:"MissingFiles,omitempty"`
 }
 
 func (x *RequestMissing) Reset() {
 	*x = RequestMissing{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_hydfs_repl_repl_proto_msgTypes[1]
+		mi := &file_hydfs_repl_repl_proto_msgTypes[2]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -91,7 +138,7 @@ func (x *RequestMissing) String() string {
 func (*RequestMissing) ProtoMessage() {}
 
 func (x *RequestMissing) ProtoReflect() protoreflect.Message {
-	mi := &file_hydfs_repl_repl_proto_msgTypes[1]
+	mi := &file_hydfs_repl_repl_proto_msgTypes[2]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -104,7 +151,7 @@ func (x *RequestMissing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestMissing.ProtoReflect.Descriptor instead.
 func (*RequestMissing) Descriptor() ([]byte, []int) {
-	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{1}
+	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *RequestMissing) GetMissingFiles() []*File {
@@ -119,13 +166,13 @@ type RequestData struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	DataFiles []*File `protobuf:"bytes,1,rep,name=data_files,json=dataFiles,proto3" json:"data_files,omitempty"`
+	DataFiles []*File `protobuf:"bytes,1,rep,name=DataFiles,proto3" json:"DataFiles,omitempty"`
 }
 
 func (x *RequestData) Reset() {
 	*x = RequestData{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_hydfs_repl_repl_proto_msgTypes[2]
+		mi := &file_hydfs_repl_repl_proto_msgTypes[3]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -138,7 +185,7 @@ func (x *RequestData) String() string {
 func (*RequestData) ProtoMessage() {}
 
 func (x *RequestData) ProtoReflect() protoreflect.Message {
-	mi := &file_hydfs_repl_repl_proto_msgTypes[2]
+	mi := &file_hydfs_repl_repl_proto_msgTypes[3]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -151,7 +198,7 @@ func (x *RequestData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestData.ProtoReflect.Descriptor instead.
 func (*RequestData) Descriptor() ([]byte, []int) {
-	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{2}
+	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RequestData) GetDataFiles() []*File {
@@ -161,31 +208,31 @@ func (x *RequestData) GetDataFiles() []*File {
 	return nil
 }
 
-type RequestReply struct {
+type RequestAck struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Ok bool `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"`
+	OK bool `protobuf:"varint,1,opt,name=OK,proto3" json:"OK,omitempty"`
 }
 
-func (x *RequestReply) Reset() {
-	*x = RequestReply{}
+func (x *RequestAck) Reset() {
+	*x = RequestAck{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_hydfs_repl_repl_proto_msgTypes[3]
+		mi := &file_hydfs_repl_repl_proto_msgTypes[4]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
 }
 
-func (x *RequestReply) String() string {
+func (x *RequestAck) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*RequestReply) ProtoMessage() {}
+func (*RequestAck) ProtoMessage() {}
 
-func (x *RequestReply) ProtoReflect() protoreflect.Message {
-	mi := &file_hydfs_repl_repl_proto_msgTypes[3]
+func (x *RequestAck) ProtoReflect() protoreflect.Message {
+	mi := &file_hydfs_repl_repl_proto_msgTypes[4]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -196,14 +243,14 @@ func (x *RequestReply) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use RequestReply.ProtoReflect.Descriptor instead.
-func (*RequestReply) Descriptor() ([]byte, []int) {
-	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{3}
+// Deprecated: Use RequestAck.ProtoReflect.Descriptor instead.
+func (*RequestAck) Descriptor() ([]byte, []int) {
+	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *RequestReply) GetOk() bool {
+func (x *RequestAck) GetOK() bool {
 	if x != nil {
-		return x.Ok
+		return x.OK
 	}
 	return false
 }
@@ -213,14 +260,14 @@ type File struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Filename string       `protobuf:"bytes,1,opt,name=filename,proto3" json:"filename,omitempty"`
-	Blocks   []*FileBlock `protobuf:"bytes,2,rep,name=blocks,proto3" json:"blocks,omitempty"`
+	Filename string       `protobuf:"bytes,1,opt,name=Filename,proto3" json:"Filename,omitempty"`
+	Blocks   []*FileBlock `protobuf:"bytes,2,rep,name=Blocks,proto3" json:"Blocks,omitempty"`
 }
 
 func (x *File) Reset() {
 	*x = File{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_hydfs_repl_repl_proto_msgTypes[4]
+		mi := &file_hydfs_repl_repl_proto_msgTypes[5]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -233,7 +280,7 @@ func (x *File) String() string {
 func (*File) ProtoMessage() {}
 
 func (x *File) ProtoReflect() protoreflect.Message {
-	mi := &file_hydfs_repl_repl_proto_msgTypes[4]
+	mi := &file_hydfs_repl_repl_proto_msgTypes[5]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -246,7 +293,7 @@ func (x *File) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use File.ProtoReflect.Descriptor instead.
 func (*File) Descriptor() ([]byte, []int) {
-	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{4}
+	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *File) GetFilename() string {
@@ -268,15 +315,15 @@ type FileBlock struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BlockHash int32  `protobuf:"varint,1,opt,name=blockHash,proto3" json:"blockHash,omitempty"`
-	BlockID   int32  `protobuf:"varint,2,opt,name=blockID,proto3" json:"blockID,omitempty"`
-	Data      []byte `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
+	BlockNode uint32 `protobuf:"varint,1,opt,name=BlockNode,proto3" json:"BlockNode,omitempty"`
+	BlockID   uint32 `protobuf:"varint,2,opt,name=BlockID,proto3" json:"BlockID,omitempty"`
+	Data      []byte `protobuf:"bytes,3,opt,name=Data,proto3" json:"Data,omitempty"`
 }
 
 func (x *FileBlock) Reset() {
 	*x = FileBlock{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_hydfs_repl_repl_proto_msgTypes[5]
+		mi := &file_hydfs_repl_repl_proto_msgTypes[6]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -289,7 +336,7 @@ func (x *FileBlock) String() string {
 func (*FileBlock) ProtoMessage() {}
 
 func (x *FileBlock) ProtoReflect() protoreflect.Message {
-	mi := &file_hydfs_repl_repl_proto_msgTypes[5]
+	mi := &file_hydfs_repl_repl_proto_msgTypes[6]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -302,17 +349,17 @@ func (x *FileBlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileBlock.ProtoReflect.Descriptor instead.
 func (*FileBlock) Descriptor() ([]byte, []int) {
-	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{5}
+	return file_hydfs_repl_repl_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *FileBlock) GetBlockHash() int32 {
+func (x *FileBlock) GetBlockNode() uint32 {
 	if x != nil {
-		return x.BlockHash
+		return x.BlockNode
 	}
 	return 0
 }
 
-func (x *FileBlock) GetBlockID() int32 {
+func (x *FileBlock) GetBlockID() uint32 {
 	if x != nil {
 		return x.BlockID
 	}
@@ -330,37 +377,42 @@ var File_hydfs_repl_repl_proto protoreflect.FileDescriptor
 
 var file_hydfs_repl_repl_proto_rawDesc = []byte{
 	0x0a, 0x15, 0x68, 0x79, 0x64, 0x66, 0x73, 0x2f, 0x72, 0x65, 0x70, 0x6c, 0x2f, 0x72, 0x65, 0x70,
-	0x6c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x2b, 0x0a, 0x0c, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x46, 0x69, 0x6c, 0x65, 0x73, 0x12, 0x1b, 0x0a, 0x05, 0x66, 0x69, 0x6c, 0x65, 0x73,
-	0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x46, 0x69, 0x6c, 0x65, 0x52, 0x05, 0x66,
-	0x69, 0x6c, 0x65, 0x73, 0x22, 0x3c, 0x0a, 0x0e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x4d,
-	0x69, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x12, 0x2a, 0x0a, 0x0d, 0x6d, 0x69, 0x73, 0x73, 0x69, 0x6e,
-	0x67, 0x5f, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x05, 0x2e,
-	0x46, 0x69, 0x6c, 0x65, 0x52, 0x0c, 0x6d, 0x69, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x46, 0x69, 0x6c,
-	0x65, 0x73, 0x22, 0x33, 0x0a, 0x0b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x44, 0x61, 0x74,
-	0x61, 0x12, 0x24, 0x0a, 0x0a, 0x64, 0x61, 0x74, 0x61, 0x5f, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x18,
-	0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x46, 0x69, 0x6c, 0x65, 0x52, 0x09, 0x64, 0x61,
-	0x74, 0x61, 0x46, 0x69, 0x6c, 0x65, 0x73, 0x22, 0x1e, 0x0a, 0x0c, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x0e, 0x0a, 0x02, 0x6f, 0x6b, 0x18, 0x01, 0x20,
-	0x01, 0x28, 0x08, 0x52, 0x02, 0x6f, 0x6b, 0x22, 0x46, 0x0a, 0x04, 0x46, 0x69, 0x6c, 0x65, 0x12,
-	0x1a, 0x0a, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28,
-	0x09, 0x52, 0x08, 0x66, 0x69, 0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x22, 0x0a, 0x06, 0x62,
-	0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0a, 0x2e, 0x46, 0x69,
-	0x6c, 0x65, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x52, 0x06, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x22,
-	0x57, 0x0a, 0x09, 0x46, 0x69, 0x6c, 0x65, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x12, 0x1c, 0x0a, 0x09,
-	0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x61, 0x73, 0x68, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52,
-	0x09, 0x62, 0x6c, 0x6f, 0x63, 0x6b, 0x48, 0x61, 0x73, 0x68, 0x12, 0x18, 0x0a, 0x07, 0x62, 0x6c,
-	0x6f, 0x63, 0x6b, 0x49, 0x44, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x07, 0x62, 0x6c, 0x6f,
-	0x63, 0x6b, 0x49, 0x44, 0x12, 0x12, 0x0a, 0x04, 0x64, 0x61, 0x74, 0x61, 0x18, 0x03, 0x20, 0x01,
-	0x28, 0x0c, 0x52, 0x04, 0x64, 0x61, 0x74, 0x61, 0x32, 0x6b, 0x0a, 0x0b, 0x52, 0x65, 0x70, 0x6c,
-	0x69, 0x63, 0x61, 0x74, 0x69, 0x6f, 0x6e, 0x12, 0x2e, 0x0a, 0x0a, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x41, 0x73, 0x6b, 0x12, 0x0d, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x46,
-	0x69, 0x6c, 0x65, 0x73, 0x1a, 0x0f, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x4d, 0x69,
-	0x73, 0x73, 0x69, 0x6e, 0x67, 0x22, 0x00, 0x12, 0x2c, 0x0a, 0x0b, 0x52, 0x65, 0x71, 0x75, 0x65,
-	0x73, 0x74, 0x53, 0x65, 0x6e, 0x64, 0x12, 0x0c, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x44, 0x61, 0x74, 0x61, 0x1a, 0x0d, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x52, 0x65,
-	0x70, 0x6c, 0x79, 0x22, 0x00, 0x42, 0x08, 0x5a, 0x06, 0x2e, 0x2f, 0x72, 0x65, 0x70, 0x6c, 0x62,
-	0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x2d, 0x0a, 0x0a, 0x43, 0x72, 0x65, 0x61, 0x74,
+	0x65, 0x44, 0x61, 0x74, 0x61, 0x12, 0x1f, 0x0a, 0x07, 0x4e, 0x65, 0x77, 0x46, 0x69, 0x6c, 0x65,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x46, 0x69, 0x6c, 0x65, 0x52, 0x07, 0x4e,
+	0x65, 0x77, 0x46, 0x69, 0x6c, 0x65, 0x22, 0x2b, 0x0a, 0x0c, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73,
+	0x74, 0x46, 0x69, 0x6c, 0x65, 0x73, 0x12, 0x1b, 0x0a, 0x05, 0x46, 0x69, 0x6c, 0x65, 0x73, 0x18,
+	0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x46, 0x69, 0x6c, 0x65, 0x52, 0x05, 0x46, 0x69,
+	0x6c, 0x65, 0x73, 0x22, 0x3b, 0x0a, 0x0e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x4d, 0x69,
+	0x73, 0x73, 0x69, 0x6e, 0x67, 0x12, 0x29, 0x0a, 0x0c, 0x4d, 0x69, 0x73, 0x73, 0x69, 0x6e, 0x67,
+	0x46, 0x69, 0x6c, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x05, 0x2e, 0x46, 0x69,
+	0x6c, 0x65, 0x52, 0x0c, 0x4d, 0x69, 0x73, 0x73, 0x69, 0x6e, 0x67, 0x46, 0x69, 0x6c, 0x65, 0x73,
+	0x22, 0x32, 0x0a, 0x0b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x44, 0x61, 0x74, 0x61, 0x12,
+	0x23, 0x0a, 0x09, 0x44, 0x61, 0x74, 0x61, 0x46, 0x69, 0x6c, 0x65, 0x73, 0x18, 0x01, 0x20, 0x03,
+	0x28, 0x0b, 0x32, 0x05, 0x2e, 0x46, 0x69, 0x6c, 0x65, 0x52, 0x09, 0x44, 0x61, 0x74, 0x61, 0x46,
+	0x69, 0x6c, 0x65, 0x73, 0x22, 0x1c, 0x0a, 0x0a, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x41,
+	0x63, 0x6b, 0x12, 0x0e, 0x0a, 0x02, 0x4f, 0x4b, 0x18, 0x01, 0x20, 0x01, 0x28, 0x08, 0x52, 0x02,
+	0x4f, 0x4b, 0x22, 0x46, 0x0a, 0x04, 0x46, 0x69, 0x6c, 0x65, 0x12, 0x1a, 0x0a, 0x08, 0x46, 0x69,
+	0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x08, 0x46, 0x69,
+	0x6c, 0x65, 0x6e, 0x61, 0x6d, 0x65, 0x12, 0x22, 0x0a, 0x06, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x73,
+	0x18, 0x02, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x0a, 0x2e, 0x46, 0x69, 0x6c, 0x65, 0x42, 0x6c, 0x6f,
+	0x63, 0x6b, 0x52, 0x06, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x73, 0x22, 0x57, 0x0a, 0x09, 0x46, 0x69,
+	0x6c, 0x65, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x12, 0x1c, 0x0a, 0x09, 0x42, 0x6c, 0x6f, 0x63, 0x6b,
+	0x4e, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x09, 0x42, 0x6c, 0x6f, 0x63,
+	0x6b, 0x4e, 0x6f, 0x64, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44,
+	0x18, 0x02, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x07, 0x42, 0x6c, 0x6f, 0x63, 0x6b, 0x49, 0x44, 0x12,
+	0x12, 0x0a, 0x04, 0x44, 0x61, 0x74, 0x61, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0c, 0x52, 0x04, 0x44,
+	0x61, 0x74, 0x61, 0x32, 0x96, 0x01, 0x0a, 0x0b, 0x52, 0x65, 0x70, 0x6c, 0x69, 0x63, 0x61, 0x74,
+	0x69, 0x6f, 0x6e, 0x12, 0x2e, 0x0a, 0x0a, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x41, 0x73,
+	0x6b, 0x12, 0x0d, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x46, 0x69, 0x6c, 0x65, 0x73,
+	0x1a, 0x0f, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x4d, 0x69, 0x73, 0x73, 0x69, 0x6e,
+	0x67, 0x22, 0x00, 0x12, 0x2a, 0x0a, 0x0b, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x53, 0x65,
+	0x6e, 0x64, 0x12, 0x0c, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x44, 0x61, 0x74, 0x61,
+	0x1a, 0x0b, 0x2e, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x41, 0x63, 0x6b, 0x22, 0x00, 0x12,
+	0x2b, 0x0a, 0x0d, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65,
+	0x12, 0x0b, 0x2e, 0x43, 0x72, 0x65, 0x61, 0x74, 0x65, 0x44, 0x61, 0x74, 0x61, 0x1a, 0x0b, 0x2e,
+	0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x41, 0x63, 0x6b, 0x22, 0x00, 0x42, 0x08, 0x5a, 0x06,
+	0x2e, 0x2f, 0x72, 0x65, 0x70, 0x6c, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -375,29 +427,33 @@ func file_hydfs_repl_repl_proto_rawDescGZIP() []byte {
 	return file_hydfs_repl_repl_proto_rawDescData
 }
 
-var file_hydfs_repl_repl_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_hydfs_repl_repl_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_hydfs_repl_repl_proto_goTypes = []any{
-	(*RequestFiles)(nil),   // 0: RequestFiles
-	(*RequestMissing)(nil), // 1: RequestMissing
-	(*RequestData)(nil),    // 2: RequestData
-	(*RequestReply)(nil),   // 3: RequestReply
-	(*File)(nil),           // 4: File
-	(*FileBlock)(nil),      // 5: FileBlock
+	(*CreateData)(nil),     // 0: CreateData
+	(*RequestFiles)(nil),   // 1: RequestFiles
+	(*RequestMissing)(nil), // 2: RequestMissing
+	(*RequestData)(nil),    // 3: RequestData
+	(*RequestAck)(nil),     // 4: RequestAck
+	(*File)(nil),           // 5: File
+	(*FileBlock)(nil),      // 6: FileBlock
 }
 var file_hydfs_repl_repl_proto_depIdxs = []int32{
-	4, // 0: RequestFiles.files:type_name -> File
-	4, // 1: RequestMissing.missing_files:type_name -> File
-	4, // 2: RequestData.data_files:type_name -> File
-	5, // 3: File.blocks:type_name -> FileBlock
-	0, // 4: Replication.RequestAsk:input_type -> RequestFiles
-	2, // 5: Replication.RequestSend:input_type -> RequestData
-	1, // 6: Replication.RequestAsk:output_type -> RequestMissing
-	3, // 7: Replication.RequestSend:output_type -> RequestReply
-	6, // [6:8] is the sub-list for method output_type
-	4, // [4:6] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 0: CreateData.NewFile:type_name -> File
+	5, // 1: RequestFiles.Files:type_name -> File
+	5, // 2: RequestMissing.MissingFiles:type_name -> File
+	5, // 3: RequestData.DataFiles:type_name -> File
+	6, // 4: File.Blocks:type_name -> FileBlock
+	1, // 5: Replication.RequestAsk:input_type -> RequestFiles
+	3, // 6: Replication.RequestSend:input_type -> RequestData
+	0, // 7: Replication.RequestCreate:input_type -> CreateData
+	2, // 8: Replication.RequestAsk:output_type -> RequestMissing
+	4, // 9: Replication.RequestSend:output_type -> RequestAck
+	4, // 10: Replication.RequestCreate:output_type -> RequestAck
+	8, // [8:11] is the sub-list for method output_type
+	5, // [5:8] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_hydfs_repl_repl_proto_init() }
@@ -407,7 +463,7 @@ func file_hydfs_repl_repl_proto_init() {
 	}
 	if !protoimpl.UnsafeEnabled {
 		file_hydfs_repl_repl_proto_msgTypes[0].Exporter = func(v any, i int) any {
-			switch v := v.(*RequestFiles); i {
+			switch v := v.(*CreateData); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -419,7 +475,7 @@ func file_hydfs_repl_repl_proto_init() {
 			}
 		}
 		file_hydfs_repl_repl_proto_msgTypes[1].Exporter = func(v any, i int) any {
-			switch v := v.(*RequestMissing); i {
+			switch v := v.(*RequestFiles); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -431,7 +487,7 @@ func file_hydfs_repl_repl_proto_init() {
 			}
 		}
 		file_hydfs_repl_repl_proto_msgTypes[2].Exporter = func(v any, i int) any {
-			switch v := v.(*RequestData); i {
+			switch v := v.(*RequestMissing); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -443,7 +499,7 @@ func file_hydfs_repl_repl_proto_init() {
 			}
 		}
 		file_hydfs_repl_repl_proto_msgTypes[3].Exporter = func(v any, i int) any {
-			switch v := v.(*RequestReply); i {
+			switch v := v.(*RequestData); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -455,7 +511,7 @@ func file_hydfs_repl_repl_proto_init() {
 			}
 		}
 		file_hydfs_repl_repl_proto_msgTypes[4].Exporter = func(v any, i int) any {
-			switch v := v.(*File); i {
+			switch v := v.(*RequestAck); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -467,6 +523,18 @@ func file_hydfs_repl_repl_proto_init() {
 			}
 		}
 		file_hydfs_repl_repl_proto_msgTypes[5].Exporter = func(v any, i int) any {
+			switch v := v.(*File); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_hydfs_repl_repl_proto_msgTypes[6].Exporter = func(v any, i int) any {
 			switch v := v.(*FileBlock); i {
 			case 0:
 				return &v.state
@@ -485,7 +553,7 @@ func file_hydfs_repl_repl_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_hydfs_repl_repl_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

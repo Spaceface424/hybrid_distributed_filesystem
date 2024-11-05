@@ -1,6 +1,11 @@
 package hydfs
 
-import "github.com/huandu/skiplist"
+import (
+	"fmt"
+	"sync"
+
+	"github.com/huandu/skiplist"
+)
 
 const (
 	CACHE_DIR   = "cache/" // cache directory to store cached reads
@@ -9,13 +14,15 @@ const (
 )
 
 var (
-	hashes map[int32]file // map filename to hash
-	// sorted_members []*shared.MemberInfo // slice of current nodes sorted by node hashes
-	sorted_members *skiplist.SkipList // ordered map of current nodes sorted by node hashes
-	node_hash      int32              // current node hash
+	files     *skiplist.SkipList // ordered map hash to file
+	members   *skiplist.SkipList // ordered map of current nodes sorted by node hashes
+	mu        sync.Mutex
+	node_hash uint32 // current node hash
 )
 
-type file struct {
+var ErrNotEnoughMembers error = fmt.Errorf("Not enough members to satisfy replication factor of %d", REPL_FACTOR)
+
+type File struct {
 	filename string // user defined filename
-	nextID   int32  // monotonically increasing local fileblock ID
+	nextID   uint32 // monotonically increasing local fileblock ID
 }
