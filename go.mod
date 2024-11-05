@@ -1,8 +1,9 @@
-module cs425/mp2
+module cs425/mp3
 
 go 1.23.0
 
 require (
+	github.com/huandu/skiplist v1.2.1
 	github.com/spf13/pflag v1.0.5
 	google.golang.org/grpc v1.67.0
 	google.golang.org/protobuf v1.34.2

@@ -34,3 +34,7 @@ demo_data
 
 # test log files
 tests
+
+# hydfs files
+filesystem/
+tmp/
