@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	CACHE_DIR   = "cache/" // cache directory to store cached reads
-	HYDFS_DIR   = "tmp/"   // hydfs directory to store blocks
+	CACHE_DIR   = "cache/"     // cache directory to store cached reads
+	HYDFS_DIR   = "hydfs_dir/" // hydfs directory to store blocks
 	REPL_FACTOR = 3
 )
 

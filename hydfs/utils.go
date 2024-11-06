@@ -2,25 +2,41 @@ package hydfs
 
 import (
 	"cs425/mp3/hydfs/swim"
+	"cs425/mp3/shared"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 )
 
 // Prints the files currently stored at this node
 // Iterates through the file hashmap to print the names
 func listFiles() {
-	// TODO:
 	res := fmt.Sprintf("---------------------------- NODE %d FILES -----------------------------\n", node_hash)
-	// for hash, file := range hashes {
-	// }
+	cur_file := files.Front()
+	for range files.Len() {
+		res += fmt.Sprintf("Hash: %d\tFilename: %s\n", cur_file.Element().Value.(File).filename)
+	}
+	res += fmt.Sprintf("---------------------------- ------------- -----------------------------\n", node_hash)
 	fmt.Print(res)
 }
 
 // Make sure we start with no files stored
 // Delete all files in HYDFS_DIR
 func cleanup() {
-	// TODO:
+	files, err := os.ReadDir(HYDFS_DIR)
+	if err != nil {
+		log.Fatal("[ERROR] Failed to read directory: %v", err)
+	}
+
+	for _, file := range files {
+		filePath := filepath.Join(HYDFS_DIR, file.Name())
+		if err := os.Remove(filePath); err != nil {
+			log.Fatal("[ERROR] Failed to delete file %s: %v", filePath, err)
+		}
+	}
+
+	return
 }
 
 // Get random replica index
@@ -138,6 +154,8 @@ func createBlock(filename string, block_node uint32, blockID uint32, data []byte
 	if err != nil {
 		log.Fatal("[ERROR] Create file error:", err)
 	}
+	defer file.Close()
+
 	_, err = file.Write(data)
 	if err != nil {
 		log.Fatal("[ERROR] Write file error:", err)
@@ -156,4 +174,21 @@ func getReplicas() []uint32 {
 		cur_elem = cur_elem.Next()
 	}
 	return res
+}
+
+// return target node for a file
+func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	main_replica := members.Find(file_hash)
+	offset := node_hash % REPL_FACTOR
+	for range offset {
+		main_replica = main_replica.Next()
+		if main_replica == nil {
+			main_replica = members.Front()
+		}
+	}
+
+	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)
 }

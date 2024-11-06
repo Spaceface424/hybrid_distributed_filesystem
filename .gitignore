@@ -37,4 +37,5 @@ tests
 
 # hydfs files
 filesystem/
+hydfs_dir/
 tmp/
