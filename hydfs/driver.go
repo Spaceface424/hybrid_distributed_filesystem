@@ -92,6 +92,33 @@ func hydfsMerge(filepath string) (bool, error) {
 	return false, nil
 }
 
+// Handle events from membership change channel
+// Make re-replication calls and re-assign sorted_members ordered map
+func handleMembershipChange(member_change_chan chan struct{}) {
+	for {
+		<-member_change_chan
+		swim.Members.Mu.Lock()
+		mu.Lock()
+
+		hydfs_log.Println("[INFO] Handling membership change")
+		members.Init()
+		for _, member := range swim.Members.MemberMap {
+			members.Set(member.Hash, member)
+		}
+		members.Set(node_hash, this_member)
+
+		// TODO: handle re-replication
+		// check if became primary replica for new range
+		// make re-replication calls to secondary replicas
+		// for _, repl_hash := range getReplicas() {
+		//
+		// }
+
+		mu.Unlock()
+		swim.Members.Mu.Unlock()
+	}
+}
+
 // user command loop
 func commandLoop() {
 	scanner := bufio.NewReader(os.Stdin)

@@ -49,26 +49,6 @@ func getReplicaIdx(main_idx int, length int, cur_node_hash int32) int {
 	return (main_idx + (int(cur_node_hash) % REPL_FACTOR)) % length
 }
 
-// Handle events from membership change channel
-// Make re-replication calls and re-assign sorted_members ordered map
-func handleMembershipChange(member_change_chan chan struct{}) {
-	for {
-		<-member_change_chan
-		swim.Members.Mu.Lock()
-		mu.Lock()
-
-		hydfs_log.Println("[INFO] Handling membership change")
-		members.Init()
-		for _, member := range swim.Members.MemberMap {
-			members.Set(member.Hash, member)
-		}
-		members.Set(node_hash, this_member)
-
-		mu.Unlock()
-		swim.Members.Mu.Unlock()
-	}
-}
-
 // Hash a filename
 func hashFilename(filename string) uint32 {
 	io.WriteString(hash_func, filename)
@@ -202,6 +182,32 @@ func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	}
 
 	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)
+}
+
+// get all file hashes that current node is the primary replica for
+func getPrimaryReplicaFiles() {
+	file_hashes := make([]uint32, 0)
+	prev_node := members.Get(this_member.Hash).Prev()
+	if prev_node == nil {
+		prev_node = members.Back()
+	}
+
+	start := (prev_node.Key().(uint32) + 1) % (2 << M)
+	end := this_member.Hash
+	cur_file := files.Front()
+	for cur_file != nil {
+		cur_file_hash := cur_file.Key().(uint32)
+		// if cur_node and prev_node between 0
+		if start > end {
+			if cur_file_hash < start || cur_file_hash >= end {
+				file_hashes = append(file_hashes, cur_file_hash)
+			}
+		} else {
+			if cur_file_hash < start && cur_file_hash >= end {
+				file_hashes = append(file_hashes, cur_file_hash)
+			}
+		}
+	}
 }
 
 func printMemberDict() {

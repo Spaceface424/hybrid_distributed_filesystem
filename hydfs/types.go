@@ -15,6 +15,7 @@ const (
 	HYDFS_DIR   = "hydfs_dir" // hydfs directory to store blocks
 	REPL_FACTOR = 3
 	GRPC_PORT   = "7000"
+	M           = 10
 )
 
 var (
