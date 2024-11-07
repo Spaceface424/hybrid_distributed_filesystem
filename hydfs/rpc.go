@@ -3,7 +3,7 @@ package hydfs
 import (
 	"context"
 	"cs425/mp3/hydfs/repl"
-	"log"
+	"cs425/mp3/shared"
 	"net"
 
 	"google.golang.org/grpc"
@@ -16,13 +16,13 @@ type HydfsRPCserver struct {
 func StartGRPCServer(host string) {
 	lis, err := net.Listen("tcp", host)
 	if err != nil {
-		log.Fatalf("[ERROR] failed to listen: %v", err)
+		hydfs_log.Fatalf("[ERROR] failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 	repl.RegisterReplicationServer(s, &HydfsRPCserver{})
-	log.Printf("[INFO] gRPC server started at %v", lis.Addr())
+	hydfs_log.Printf("[INFO] HyDFS gRPC server started at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("[ERROR] Failed to serve: %v", err)
+		hydfs_log.Fatalf("[ERROR] Failed to serve: %v", err)
 	}
 }
 
@@ -73,6 +73,43 @@ func (s *HydfsRPCserver) RequestCreate(ctx context.Context, request *repl.Create
 	mu.Lock()
 	defer mu.Unlock()
 
+	hydfs_log.Printf("[INFO] RPC Serving create request for file: %s", request.NewFile.Filename)
+
+	file_rpc := request.NewFile
+	file_struct := File{filename: file_rpc.Filename, nextID: 1}
+	file_hash := hashFilename(file_rpc.Filename)
+	files.Set(file_hash, file_struct)
+	block := request.NewFile.Blocks[0]
+
+	// fail request if file already exists
+	if files.Get(file_hash) != nil {
+		hydfs_log.Printf("[WARNING] RPC Serving create request file %s already exists", request.NewFile.Filename)
+		return &repl.RequestAck{OK: false}, nil
+	}
+
+	createBlock(file_rpc.Filename, block.BlockNode, block.BlockID, block.Data)
+
+	for _, replica_hash := range getReplicas() {
+		// send create request to neighbor nodes
+		replica := members.Get(replica_hash)
+		if replica == nil {
+			hydfs_log.Println("[WARNING] replica == nil")
+			continue
+		}
+		go sendCreateReplicaRPC(replica.Value.(*shared.MemberInfo), file_rpc)
+	}
+
+	return &repl.RequestAck{OK: true}, nil
+}
+
+// Process a file create request for a replica
+// Create the file directory and the initial block
+func (s *HydfsRPCserver) RequestReplicaCreate(ctx context.Context, request *repl.CreateData) (*repl.RequestAck, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	hydfs_log.Printf("[INFO] RPC Serving replica create request for file: %s", request.NewFile.Filename)
+
 	file_rpc := request.NewFile
 	file_struct := File{filename: file_rpc.Filename, nextID: 1}
 	file_hash := hashFilename(file_rpc.Filename)
@@ -80,10 +117,6 @@ func (s *HydfsRPCserver) RequestCreate(ctx context.Context, request *repl.Create
 	block := request.NewFile.Blocks[0]
 
 	createBlock(file_rpc.Filename, block.BlockNode, block.BlockID, block.Data)
-
-	for replica_hash := range getReplicas() {
-		// send create request to neighbor nodes
-	}
 
 	return &repl.RequestAck{OK: true}, nil
 }

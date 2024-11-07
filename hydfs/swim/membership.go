@@ -35,17 +35,25 @@ var (
 	ack_chan           chan *shared.PingAck
 	member_change_chan chan struct{}
 	verbose            bool
+	swim_log           log.Logger
 )
 
 func StartServer(host string, introducer string, verbose bool) (*shared.MemberInfo, chan struct{}) {
-	conn := setupServer(host, verbose)
-	defer conn.Close()
+	grpc_host := host + ":8000"
+	udp_host := host + ":9000"
+	if introducer == "" {
+		fmt.Printf("Introducer Started at %s\n", grpc_host)
+	}
+
+	conn := setupServer(udp_host, verbose)
+
 	requestIntroducer(cur_member, introducer)
 	setupLogging()
-
 	membershipList()
+
 	go sendUDPServer(conn, ack_chan)
 	go listenUDPServer(conn, ack_chan)
+	go startGRPCServer(grpc_host)
 
 	return cur_member, member_change_chan
 }
@@ -57,38 +65,40 @@ func listenUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 		pb := &shared.PingAck{}
 		err = proto.Unmarshal(buf[:n], pb)
 		if err != nil {
-			log.Println("Read err:", err)
+			swim_log.Println("Read err:", err)
 			continue
 		}
 		if rand.Float64() < DROP_RATE {
-			log.Printf("[INFO] Packet dropped while receiving %s from node %d", pb.Type, pb.SenderId)
+			swim_log.Printf("[INFO] Packet dropped while receiving %s from node %d", pb.Type, pb.SenderId)
 			continue
 		}
 		switch pb.Type {
 		case shared.MessageType_ACK:
-			log.Printf("[INFO] Received ACK from node %d", pb.SenderId)
+			swim_log.Printf("[INFO] Received ACK from node %d", pb.SenderId)
 			ack_chan <- pb
 		case shared.MessageType_PING:
-			log.Printf("[INFO] Received PING from node %d", pb.SenderId)
+			swim_log.Printf("[INFO] Received PING from node %d", pb.SenderId)
 			_, ok := Members.MemberMap[pb.SenderId]
 			_, fail_ok := failed_members.MemberMap[pb.SenderId]
 			if !ok && !fail_ok {
-				Members.MemberMap[pb.SenderId] = &shared.MemberInfo{
-					Address: addr.String(),
-					ID:      pb.SenderId,
-					State:   shared.NodeState_ALIVE,
-					IncNum:  pb.IncNum,
-				}
+				// Members.MemberMap[pb.SenderId] = &shared.MemberInfo{
+				// 	Address: addr.String(),
+				// 	ID:      pb.SenderId,
+				// 	State:   shared.NodeState_ALIVE,
+				// 	IncNum:  pb.IncNum,
+				// }
+				continue
 			} else if !ok && fail_ok {
-				gossips.gossipMap[pb.SenderId] = &shared.Gossip{
-					Member: &shared.MemberInfo{
-						Address: addr.String(),
-						ID:      pb.SenderId,
-						State:   shared.NodeState_FAILED,
-						IncNum:  0,
-					},
-					TTL: 1,
-				}
+				// gossips.gossipMap[pb.SenderId] = &shared.Gossip{
+				// 	Member: &shared.MemberInfo{
+				// 		Address: addr.String(),
+				// 		ID:      pb.SenderId,
+				// 		State:   shared.NodeState_FAILED,
+				// 		IncNum:  0,
+				// 	},
+				// 	TTL: 1,
+				// }
+				continue
 			}
 			go sendPingAck(pingackRequest{
 				conn:         conn,
@@ -99,7 +109,7 @@ func listenUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 				message_type: shared.MessageType_ACK,
 			})
 		case shared.MessageType_IDR_PING:
-			log.Printf("[INFO] Received IDR_PING from node %d", pb.SenderId)
+			swim_log.Printf("[INFO] Received IDR_PING from node %d", pb.SenderId)
 			go sendPingAck(pingackRequest{
 				conn:         conn,
 				target_addr:  addr,
@@ -113,7 +123,7 @@ func listenUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 			if _, ok := Members.MemberMap[pb.RequestId]; !ok {
 				break
 			}
-			log.Printf("[INFO] Received PING_REQ from node %d to PING node %d", pb.SenderId, pb.RequestId)
+			swim_log.Printf("[INFO] Received PING_REQ from node %d to PING node %d", pb.SenderId, pb.RequestId)
 			target_addr, _ := net.ResolveUDPAddr("udp", Members.MemberMap[pb.RequestId].Address)
 			go sendPingAck(pingackRequest{
 				conn:         conn,
@@ -128,7 +138,7 @@ func listenUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 			if _, ok := Members.MemberMap[pb.RequestId]; !ok {
 				break
 			}
-			log.Printf("[INFO] Received ACK_REQ from node %d, fowarding ACK to node %d", pb.SenderId, pb.RequestId)
+			swim_log.Printf("[INFO] Received ACK_REQ from node %d, fowarding ACK to node %d", pb.SenderId, pb.RequestId)
 			target_addr, _ := net.ResolveUDPAddr("udp", Members.MemberMap[pb.RequestId].Address)
 			go sendPingAck(pingackRequest{
 				conn:         conn,
@@ -141,7 +151,7 @@ func listenUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 
 		}
 		if len(pb.GossipBuffer) > 0 {
-			log.Printf("[INFO] Incoming gossip: %v", fmtGossip(&pb.GossipBuffer))
+			swim_log.Printf("[INFO] Incoming gossip: %v", fmtGossip(&pb.GossipBuffer))
 		}
 		go updateMembership(pb)
 	}
@@ -152,12 +162,12 @@ func sendUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 	round_timer := time.NewTimer(time.Duration(PROTOCAL_PERIOD) * time.Second)
 	ping_req_timer := time.NewTimer(time.Duration(PROTOCAL_PERIOD/2) * time.Second)
 	for {
-		log.Printf("[INFO] Round: %d", round)
+		swim_log.Printf("[INFO] Round: %d", round)
 		logMembershipList()
 		decTTL()
 		round++
 		if len(Members.MemberMap) == 0 {
-			log.Printf("[INFO] No members in group...")
+			swim_log.Printf("[INFO] No members in group...")
 			round_robin = []int32{}
 			round_timer.Reset(time.Duration(PROTOCAL_PERIOD) * time.Second)
 			<-round_timer.C
@@ -167,7 +177,7 @@ func sendUDPServer(conn *net.UDPConn, ack_chan chan *shared.PingAck) {
 		target_id := getRoundRobinTarget()
 		target_addr, err := net.ResolveUDPAddr("udp", Members.MemberMap[target_id].Address)
 		if err != nil {
-			log.Panic("Dial UDP err:", err)
+			swim_log.Panic("Dial UDP err:", err)
 		}
 
 		round_timer.Reset(time.Duration(PROTOCAL_PERIOD) * time.Second)
@@ -217,7 +227,7 @@ func sendKPingReq(conn *net.UDPConn, target_id int32, round int32) {
 		if !ok {
 			continue
 		}
-		log.Printf("[INFO] PING not received in time from node %d, sending PING_REQ to node %d", target_id, req_id)
+		swim_log.Printf("[INFO] PING not received in time from node %d, sending PING_REQ to node %d", target_id, req_id)
 		req_addr, _ := net.ResolveUDPAddr("udp", member.Address)
 		go sendPingAck(pingackRequest{
 			conn:         conn,
@@ -237,7 +247,7 @@ func sendKPingReq(conn *net.UDPConn, target_id int32, round int32) {
 
 func sendPingAck(req pingackRequest) {
 	if len(gossips.gossipMap) > 0 {
-		log.Printf("[INFO] Sending gossip: %v", fmtGossip(&gossips.gossipMap))
+		swim_log.Printf("[INFO] Sending gossip: %v", fmtGossip(&gossips.gossipMap))
 	}
 	pb := &shared.PingAck{
 		Type:         req.message_type,
@@ -251,13 +261,13 @@ func sendPingAck(req pingackRequest) {
 	buf := []byte(data)
 	_, err = req.conn.WriteToUDP(buf, req.target_addr)
 	if err != nil {
-		log.Println(err)
+		swim_log.Fatal("[ERROR] Write UDP error:", err)
 	}
-	log.Printf("[INFO] Sending %s to node %d, addr: %s", req.message_type, req.target_id, req.target_addr)
+	swim_log.Printf("[INFO] Sending %s to node %d, addr: %s", req.message_type, req.target_id, req.target_addr)
 }
 
 func pingTimeout(target_id int32) {
-	log.Printf("[INFO] ACK not received in time from node %d, marking as FAILED", target_id)
+	swim_log.Printf("[INFO] ACK not received in time from node %d, marking as FAILED", target_id)
 	fmt.Printf("[INFO] ACK not received in time from node %d, marking as FAILED\n", target_id)
 
 	if _, ok := failed_members.MemberMap[target_id]; ok {
@@ -278,7 +288,7 @@ func suspectTimeout(id int32, inc_num int32) {
 	timer := time.NewTimer(time.Duration(SUSPECT_TIMEOUT) * time.Duration(PROTOCAL_PERIOD) * time.Second)
 	<-timer.C
 	if member, ok := Members.MemberMap[id]; ok && member.IncNum == inc_num && member.State == shared.NodeState_SUSPECT {
-		log.Printf("[INFO] Suspect Timeout for node %d, marking as FAILED", id)
+		swim_log.Printf("[INFO] Suspect Timeout for node %d, marking as FAILED", id)
 		fmt.Printf("[INFO] Suspect Timeout for node %d, marking as FAILED\n", id)
 		failNode(id)
 	}
@@ -286,7 +296,7 @@ func suspectTimeout(id int32, inc_num int32) {
 
 func pingTimeoutSuspicion(target_id int32) {
 	if _, ok := failed_members.MemberMap[target_id]; ok {
-		log.Printf("[INFO] Node %d already failed", target_id)
+		swim_log.Printf("[INFO] Node %d already failed", target_id)
 		return
 	}
 
@@ -295,7 +305,7 @@ func pingTimeoutSuspicion(target_id int32) {
 		return
 	}
 
-	log.Printf("[INFO] ACK not received in time from node %d, marking as SUSPECT", target_id)
+	swim_log.Printf("[INFO] ACK not received in time from node %d, marking as SUSPECT", target_id)
 	fmt.Printf("[INFO] ACK not received in time from node %d, marking as SUSPECT\n", target_id)
 	Members.MemberMap[target_id].State = shared.NodeState_SUSPECT
 	go suspectTimeout(target_id, Members.MemberMap[target_id].IncNum)
@@ -356,7 +366,7 @@ func updateMembership(pingack *shared.PingAck) {
 		if ID == cur_member.ID {
 			switch new_gossip.Member.State {
 			case shared.NodeState_FAILED:
-				log.Fatal("[INFO] False positive detected as failed, exiting...")
+				swim_log.Fatal("[INFO] False positive detected as failed, exiting...")
 			case shared.NodeState_SUSPECT:
 				copy_member := &shared.MemberInfo{
 					Address: new_gossip.Member.Address,

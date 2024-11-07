@@ -54,7 +54,7 @@ message MemberContainer {
 }
 
 message MemberInfo {
-	string Address = 1;
+	string Address = 1; // includes udp port, make sure to remove it if using this to make rpc calls
 	int32 ID = 2;
   uint32 Hash = 3;
 	NodeState State = 4;

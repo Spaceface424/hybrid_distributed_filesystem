@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/hydfs/swim"
+	"cs425/mp3/shared"
 	"fmt"
-	"io/ioutil"
+	"hash/fnv"
+	"io"
 	"log"
 	"os"
 	"strings"
@@ -14,57 +16,70 @@ import (
 )
 
 func StartHydfs(introducer string, verbose bool) {
-	cleanup()
 	hostname, _ := os.Hostname()
-	cur_member, member_change_chan := swim.StartServer(hostname, introducer, verbose) // idk wtd if false positive and swim shutsdown probably not an issue
-	node_hash = cur_member.Hash
+	cur_member, member_change_chan := swim.StartServer(hostname, introducer, verbose)
+	this_member = &shared.MemberInfo{
+		Address: cur_member.Address,
+		ID:      cur_member.ID,
+		Hash:    cur_member.Hash,
+		State:   cur_member.State,
+		IncNum:  cur_member.IncNum,
+	}
+	node_hash = this_member.Hash
 	files = skiplist.New(skiplist.Uint32)
 	members = skiplist.New(skiplist.Uint32)
+	member_change_chan <- struct{}{}
+	hash_func = fnv.New32()
+	hydfs_log = log.New(os.Stdout, fmt.Sprintf("hydfs.main Node %d, ", cur_member.ID), log.Ltime|log.Lshortfile)
 
-	go commandLoop()
+	cleanupDir()
+
 	go handleMembershipChange(member_change_chan)
+	go StartGRPCServer(hostname + ":" + GRPC_PORT)
 
-	wait_chan := make(chan struct{})
-	<-wait_chan
+	commandLoop()
 }
 
 func hydfsCreate(local_filename string, hydfs_filename string) (bool, error) {
 	if !enoughMembers() {
-		return false, fmt.Errorf("Error: %w with current number of members: %d, ", ErrNotEnoughMembers, members.Len())
+		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
 	file, err := os.Open(local_filename)
 	if err != nil {
-		log.Println("[ERROR] Open file error:", err)
+		hydfs_log.Println("[ERROR] Open file error:", err)
 		return false, nil
 	}
 	defer file.Close()
 
 	// read contents of file into memory
-	contents, err := ioutil.ReadAll(file)
+	contents, err := io.ReadAll(file)
 	if err != nil {
-		log.Println("[ERROR] Open file error:", err)
+		hydfs_log.Println("[ERROR] Open file error:", err)
 		return false, nil
 	}
 
-	target_hash, target := getFileTarget(uint32(hashFilename(hydfs_filename)))
+	file_hash := hashFilename(hydfs_filename)
+	target_hash, target := getFileTarget(file_hash)
+	hydfs_log.Printf("%s hash to %d", hydfs_filename, file_hash)
 	block := []*repl.FileBlock{{BlockNode: target_hash, BlockID: 0, Data: contents}}
 	file_rpc := &repl.File{Filename: hydfs_filename, Blocks: block}
+	hydfs_log.Printf("[INFO] Sending create request to node %d", target.ID)
 	return sendCreateRPC(target, file_rpc), nil
 }
 
-func hydfsGet(filepath string) ([]byte, error) {
+func hydfsGet(hydfs_filename string, local_filename string) ([]byte, error) {
 	// TODO:
 	if !enoughMembers() {
-		return nil, fmt.Errorf("Error: %w with current number of members: %d, ", ErrNotEnoughMembers, members.Len())
+		return nil, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
 
 	return make([]byte, 0), nil
 }
 
-func hydfsAppend(filepath string) (bool, error) {
+func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	// TODO:
 	if !enoughMembers() {
-		return false, fmt.Errorf("Error: %w with current number of members: %d, ", ErrNotEnoughMembers, members.Len())
+		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
 	return false, nil
 }
@@ -72,7 +87,7 @@ func hydfsAppend(filepath string) (bool, error) {
 func hydfsMerge(filepath string) (bool, error) {
 	// TODO:
 	if !enoughMembers() {
-		return false, fmt.Errorf("Error: %w with current number of members: %d, ", ErrNotEnoughMembers, members.Len())
+		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
 	return false, nil
 }
@@ -101,7 +116,11 @@ func commandLoop() {
 				fmt.Println("Create error:", err)
 				continue
 			}
-			fmt.Println("Create %v", res)
+			if res {
+				fmt.Printf("Create %s in HyDFS from %s\n", hydfs_filename, local_filename)
+			} else {
+				fmt.Println("Create failed")
+			}
 		case "get":
 			if len(commandParts) != 3 {
 				fmt.Println("usage: get HyDFSfilename localfilename")
@@ -109,7 +128,12 @@ func commandLoop() {
 			}
 			hydfs_filename := commandParts[1]
 			local_filename := commandParts[2]
-			// TODO: get
+			_, err := hydfsGet(hydfs_filename, local_filename)
+			if err != nil {
+				fmt.Println("Get error:", err)
+				continue
+			}
+			fmt.Printf("Get %s from HyDFS into %s\n", hydfs_filename, local_filename)
 		case "append":
 			if len(commandParts) != 3 {
 				fmt.Println("usage: append localfilename HyDFSfilename")
@@ -117,13 +141,22 @@ func commandLoop() {
 			}
 			local_filename := commandParts[1]
 			hydfs_filename := commandParts[2]
-			// TODO: append
+			_, err := hydfsAppend(local_filename, hydfs_filename)
+			if err != nil {
+				fmt.Println("Append error:", err)
+				continue
+			}
+			fmt.Printf("Append %s into %s in HyDFS\n", local_filename, hydfs_filename)
 		case "merge":
 			if len(commandParts) != 2 {
 				fmt.Println("usage: merge HyDFSfilename")
 				continue
 			}
 			// TODO: merge
+		case "mem":
+			printMemberDict()
+		default:
+			fmt.Println("Unknown command...")
 		}
 	}
 }

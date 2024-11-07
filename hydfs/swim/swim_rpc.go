@@ -4,7 +4,6 @@ import (
 	"context"
 	"cs425/mp3/shared"
 	"fmt"
-	"log"
 	"net"
 	"os"
 	"sort"
@@ -16,21 +15,21 @@ type SwimRPCserver struct {
 	shared.UnimplementedIntroducerServer
 }
 
-func StartGRPCServer(host string) {
+func startGRPCServer(host string) {
 	lis, err := net.Listen("tcp", host)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		swim_log.Fatalf("[ERROR] failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 	shared.RegisterIntroducerServer(s, &SwimRPCserver{})
-	fmt.Printf("gRPC server started at %v\n", lis.Addr())
+	fmt.Printf("[INFO] SWIM gRPC server started at %v\n", lis.Addr())
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		swim_log.Fatalf("[ERROR] failed to serve: %v", err)
 	}
 }
 
 func (s *SwimRPCserver) RequestMembershipInfo(ctx context.Context, member *shared.MemberInfo) (*shared.MemberContainer, error) {
-	log.Printf("Node %d requested to join", next_id)
+	swim_log.Printf("Node %d requested to join", next_id)
 	Members.Mu.Lock()
 	// failed_members.mu.Lock()
 	// gossips.mu.Lock()

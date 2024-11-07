@@ -452,7 +452,7 @@ type MemberInfo struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Address string    `protobuf:"bytes,1,opt,name=Address,proto3" json:"Address,omitempty"`
+	Address string    `protobuf:"bytes,1,opt,name=Address,proto3" json:"Address,omitempty"` // includes udp port, make sure to remove it if using this to make rpc calls
 	ID      int32     `protobuf:"varint,2,opt,name=ID,proto3" json:"ID,omitempty"`
 	Hash    uint32    `protobuf:"varint,3,opt,name=Hash,proto3" json:"Hash,omitempty"`
 	State   NodeState `protobuf:"varint,4,opt,name=State,proto3,enum=NodeState" json:"State,omitempty"`

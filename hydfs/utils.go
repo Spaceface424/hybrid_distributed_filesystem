@@ -4,7 +4,7 @@ import (
 	"cs425/mp3/hydfs/swim"
 	"cs425/mp3/shared"
 	"fmt"
-	"log"
+	"io"
 	"os"
 	"path/filepath"
 )
@@ -12,31 +12,35 @@ import (
 // Prints the files currently stored at this node
 // Iterates through the file hashmap to print the names
 func listFiles() {
-	res := fmt.Sprintf("---------------------------- NODE %d FILES -----------------------------\n", node_hash)
+	node_id := members.Get(node_hash).Value.(*shared.MemberInfo).ID
+	res := fmt.Sprintf("---------------------------- NODE %d, HASH %d FILES -----------------------\n", node_id, node_hash)
 	cur_file := files.Front()
 	for range files.Len() {
-		res += fmt.Sprintf("Hash: %d\tFilename: %s\n", cur_file.Element().Value.(File).filename)
+		res += fmt.Sprintf("Hash: %d\tFilename: %s\n", cur_file.Key().(uint32), cur_file.Element().Value.(File).filename)
 	}
-	res += fmt.Sprintf("---------------------------- ------------- -----------------------------\n", node_hash)
+	res += "--------------------------------------------------------------------------\n"
 	fmt.Print(res)
 }
 
 // Make sure we start with no files stored
-// Delete all files in HYDFS_DIR
-func cleanup() {
+// Delete all files in HYDFS_DIR or create it if it doesn't exist
+func cleanupDir() {
 	files, err := os.ReadDir(HYDFS_DIR)
 	if err != nil {
-		log.Fatal("[ERROR] Failed to read directory: %v", err)
+		if os.IsNotExist(err) {
+			os.Mkdir(HYDFS_DIR, 0644)
+			return
+		} else {
+			hydfs_log.Fatal("[ERROR] Failed to read directory:", err)
+		}
 	}
 
 	for _, file := range files {
 		filePath := filepath.Join(HYDFS_DIR, file.Name())
-		if err := os.Remove(filePath); err != nil {
-			log.Fatal("[ERROR] Failed to delete file %s: %v", filePath, err)
+		if err := os.RemoveAll(filePath); err != nil {
+			hydfs_log.Fatalf("[ERROR] Failed to delete file %s: %v", filePath, err)
 		}
 	}
-
-	return
 }
 
 // Get random replica index
@@ -53,10 +57,12 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 		swim.Members.Mu.Lock()
 		mu.Lock()
 
+		hydfs_log.Println("[INFO] Handling membership change")
 		members.Init()
-		for node_hash, member := range swim.Members.MemberMap {
-			members.Set(node_hash, member)
+		for _, member := range swim.Members.MemberMap {
+			members.Set(member.Hash, member)
 		}
+		members.Set(node_hash, this_member)
 
 		mu.Unlock()
 		swim.Members.Mu.Unlock()
@@ -64,9 +70,11 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 }
 
 // Hash a filename
-func hashFilename(filename string) int32 {
-	// TODO: use FNV hash algorithm
-	return 0
+func hashFilename(filename string) uint32 {
+	io.WriteString(hash_func, filename)
+	hash_val := hash_func.Sum32()
+	hash_func.Reset()
+	return hash_val % (2 << swim.M)
 }
 
 // Block info to filename
@@ -102,7 +110,7 @@ func dirExists(path string) bool {
 		if os.IsNotExist(err) {
 			return false
 		}
-		log.Fatal("[ERROR] stat error:", err)
+		hydfs_log.Fatal("[ERROR] stat error:", err)
 	}
 	return info.IsDir()
 }
@@ -114,7 +122,7 @@ func fileDirExists(filename string) bool {
 		if os.IsNotExist(err) {
 			return false
 		}
-		log.Fatal("[ERROR] stat error:", err)
+		hydfs_log.Fatal("[ERROR] stat error:", err)
 	}
 	return info.IsDir()
 }
@@ -126,18 +134,17 @@ func fileExists(path string) bool {
 		if os.IsNotExist(err) {
 			return false
 		}
-		log.Fatal("[ERROR] stat error:", err)
+		hydfs_log.Fatal("[ERROR] stat error:", err)
 	}
 	return !info.IsDir()
 }
 
 // create a directory for a new file in Hydfs
 func createDir(filename string) {
-	err := os.MkdirAll(HYDFS_DIR+"/"+filename, 0644)
+	err := os.MkdirAll(HYDFS_DIR+"/"+filename, 0777)
 	if err != nil {
-		log.Fatal("[ERROR] mkdir error:", err)
+		hydfs_log.Fatal("[ERROR] mkdir error:", err)
 	}
-	return
 }
 
 // create a block file and write data into it
@@ -148,17 +155,17 @@ func createBlock(filename string, block_node uint32, blockID uint32, data []byte
 		createDir(filename)
 	}
 	if fileExists(block_filepath) {
-		log.Printf("[WARNING] Trying to create block that already exists: %s", block_filepath)
+		hydfs_log.Printf("[WARNING] Trying to create block that already exists: %s", block_filepath)
 	}
 	file, err := os.Create(block_filepath)
 	if err != nil {
-		log.Fatal("[ERROR] Create file error:", err)
+		hydfs_log.Fatal("[ERROR] Create file error:", err)
 	}
 	defer file.Close()
 
 	_, err = file.Write(data)
 	if err != nil {
-		log.Fatal("[ERROR] Write file error:", err)
+		hydfs_log.Fatal("[ERROR] Write file error:", err)
 	}
 }
 
@@ -173,6 +180,7 @@ func getReplicas() []uint32 {
 		res[i] = cur_elem.Key().(uint32)
 		cur_elem = cur_elem.Next()
 	}
+	hydfs_log.Printf("[INFO] Replicating create request to replicas: %v", res)
 	return res
 }
 
@@ -182,6 +190,9 @@ func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	defer mu.Unlock()
 
 	main_replica := members.Find(file_hash)
+	if main_replica == nil {
+		main_replica = members.Front()
+	}
 	offset := node_hash % REPL_FACTOR
 	for range offset {
 		main_replica = main_replica.Next()
@@ -191,4 +202,19 @@ func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	}
 
 	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)
+}
+
+func printMemberDict() {
+	mu.Lock()
+	defer mu.Unlock()
+
+	res := "--------- Mem Dict ----------\n"
+	cur := members.Front()
+	for cur != nil {
+		res += fmt.Sprintf("Hash: %d\tNode: %d\n", cur.Key(), cur.Value.(*shared.MemberInfo).ID)
+		// res += fmt.Sprintf("Hash: %d\n", cur.Key())
+		cur = cur.Next()
+	}
+	res += "-----------------------------\n"
+	fmt.Print(res)
 }
