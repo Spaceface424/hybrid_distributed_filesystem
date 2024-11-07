@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+option go_package = "./repl";
+
+service Replication {
+  rpc RequestAsk (RequestFiles) returns (RequestMissing) {}
+  rpc RequestSend (RequestData) returns (RequestAck) {}
+  rpc RequestCreate (CreateData) returns (RequestAck) {}
+  rpc RequestReplicaCreate (CreateData) returns (RequestAck) {}
+}
+
+message CreateData {
+  File NewFile = 1;
+}
+
+message RequestFiles {
+  repeated File Files = 1;
+}
+
+message RequestMissing {
+  repeated File MissingFiles = 1;
+}
+
+message RequestData {
+  repeated File DataFiles = 1;
+}
+
+message RequestAck {
+  bool OK = 1;
+}
+
+message File {
+  string Filename = 1;
+  repeated FileBlock Blocks = 2;
+}
+
+message FileBlock {
+  uint32 BlockNode = 1;
+  uint32 BlockID = 2;
+  bytes Data = 3;
+}

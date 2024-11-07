@@ -1,7 +1,7 @@
 package swim
 
 import (
-	"cs425/mp2/shared"
+	"cs425/mp3/shared"
 	"fmt"
 	"io"
 	"log"
@@ -12,9 +12,9 @@ import (
 	"sync"
 )
 
-type memberContainer struct {
-	memberMap map[int32]*shared.MemberInfo
-	mu        sync.Mutex
+type MemberContainer struct {
+	MemberMap map[int32]*shared.MemberInfo
+	Mu        sync.Mutex
 }
 
 type gossipContainer struct {
@@ -40,25 +40,26 @@ func setupServer(host string, verbose_flag bool) *net.UDPConn {
 		IncNum:  0,
 	}
 
-	members = memberContainer{
-		memberMap: make(map[int32]*shared.MemberInfo),
+	Members = MemberContainer{
+		MemberMap: make(map[int32]*shared.MemberInfo),
 	}
-	failed_members = memberContainer{
-		memberMap: make(map[int32]*shared.MemberInfo),
+	failed_members = MemberContainer{
+		MemberMap: make(map[int32]*shared.MemberInfo),
 	}
 	gossips = gossipContainer{
 		gossipMap: make(map[int32]*shared.Gossip),
 	}
-	ack_chan = make(chan *shared.PingAck, 5)
+	ack_chan = make(chan *shared.PingAck, 10)
+	member_change_chan = make(chan struct{}, 10)
 	verbose = verbose_flag
 	udpAddr, err := net.ResolveUDPAddr("udp", host)
 	if err != nil {
-		log.Panic("[ERROR] UDP err:", err)
+		swim_log.Panic("[ERROR] UDP err:", err)
 	}
 
 	conn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
-		log.Panic("[ERROR] Listen UDP err:", err)
+		swim_log.Panic("[ERROR] Listen UDP err:", err)
 	}
 	fmt.Println("UDP server started at", conn.LocalAddr())
 	return conn
@@ -67,31 +68,31 @@ func setupServer(host string, verbose_flag bool) *net.UDPConn {
 func setupLogging() {
 	logFile, err := os.OpenFile(fmt.Sprintf("logs/node.%d.log", cur_member.ID), os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0666)
 	if err != nil {
-		log.Fatalf("[ERROR] Log file error: %v", err)
+		swim_log.Fatalf("[ERROR] Log file error: %v", err)
 	}
 	defer logFile.Close()
-	log.SetPrefix(fmt.Sprintf("Node %d, ", cur_member.ID))
-	log.SetFlags(log.Lmsgprefix | log.Ltime | log.Lmicroseconds)
+	swim_log.SetPrefix(fmt.Sprintf("hydfs.swim --- Node %d, ", cur_member.ID))
+	swim_log.SetFlags(log.Lmsgprefix | log.Ltime | log.Lmicroseconds)
 	if verbose {
 		mw := io.MultiWriter(os.Stdout, logFile)
-		log.SetOutput(mw)
+		swim_log.SetOutput(mw)
 	} else {
-		log.SetOutput(logFile)
+		swim_log.SetOutput(logFile)
 	}
 }
 
 func logMembershipList() {
-	member_slice := make([]int32, len(members.memberMap)+1)
+	member_slice := make([]int32, len(Members.MemberMap)+1)
 	member_slice[0] = cur_member.ID
 	i := 1
-	for k := range members.memberMap {
+	for k := range Members.MemberMap {
 		member_slice[i] = k
 		i++
 	}
 	sort.Slice(member_slice, func(i, j int) bool {
 		return member_slice[i] < member_slice[j]
 	})
-	log.Printf("Membership List: %v", member_slice)
+	swim_log.Printf("Membership List: %v", member_slice)
 }
 
 func fmtGossip(gossip_buffer *map[int32]*shared.Gossip) string {
@@ -104,11 +105,11 @@ func fmtGossip(gossip_buffer *map[int32]*shared.Gossip) string {
 	return fmt.Sprint(gossip_slice)
 }
 
-func printMembershipList() {
-	member_slice := make([]*shared.MemberInfo, len(members.memberMap)+1)
+func PrintMembershipList() {
+	member_slice := make([]*shared.MemberInfo, len(Members.MemberMap)+1)
 	member_slice[0] = cur_member
 	i := 1
-	for _, v := range members.memberMap {
+	for _, v := range Members.MemberMap {
 		member_slice[i] = v
 		i++
 	}
@@ -132,36 +133,39 @@ func membershipList() {
 	if verbose {
 		logMembershipList()
 	} else {
-		printMembershipList()
+		PrintMembershipList()
 	}
 }
 
 func getRoundRobinTarget() int32 {
+	Members.Mu.Lock()
+	defer Members.Mu.Unlock()
+
 	for rr_index < len(round_robin) {
-		_, ok := members.memberMap[round_robin[rr_index]]
+		_, ok := Members.MemberMap[round_robin[rr_index]]
 		rr_index++
 		if !ok {
 			continue
 		}
 		return round_robin[rr_index-1]
-
 	}
-	shuffleRoundRobin()
+	round_robin = shuffleRoundRobin()
 	rr_index = 1
 	return round_robin[rr_index-1]
 }
 
-func shuffleRoundRobin() {
-	new_round_robin := make([]int32, len(members.memberMap))
+func shuffleRoundRobin() []int32 {
+	new_round_robin := make([]int32, len(Members.MemberMap))
 	i := 0
-	for id := range members.memberMap {
+	for id := range Members.MemberMap {
 		new_round_robin[i] = id
 		i++
 	}
+
 	rand.Shuffle(len(new_round_robin), func(i, j int) {
 		new_round_robin[i], new_round_robin[j] = new_round_robin[j], new_round_robin[i]
 	})
-	round_robin = new_round_robin
+	return new_round_robin
 }
 
 func decTTL() {
@@ -174,7 +178,11 @@ func decTTL() {
 }
 
 func failNode(id int32) {
-	failed_members.memberMap[id] = members.memberMap[id]
-	failed_members.memberMap[id].State = shared.NodeState_FAILED
-	delete(members.memberMap, id)
+	failed_members.MemberMap[id] = Members.MemberMap[id]
+	failed_members.MemberMap[id].State = shared.NodeState_FAILED
+
+	Members.Mu.Lock()
+	delete(Members.MemberMap, id)
+	Members.Mu.Unlock()
+	member_change_chan <- struct{}{}
 }
