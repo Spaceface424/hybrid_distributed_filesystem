@@ -74,12 +74,9 @@ func (s *HydfsRPCserver) RequestCreate(ctx context.Context, request *repl.Create
 	defer mu.Unlock()
 
 	hydfs_log.Printf("[INFO] RPC Serving create request for file: %s", request.NewFile.Filename)
-
 	file_rpc := request.NewFile
 	file_struct := File{filename: file_rpc.Filename, nextID: 1}
 	file_hash := hashFilename(file_rpc.Filename)
-	files.Set(file_hash, file_struct)
-	block := request.NewFile.Blocks[0]
 
 	// fail request if file already exists
 	if files.Get(file_hash) != nil {
@@ -87,6 +84,8 @@ func (s *HydfsRPCserver) RequestCreate(ctx context.Context, request *repl.Create
 		return &repl.RequestAck{OK: false}, nil
 	}
 
+	files.Set(file_hash, file_struct)
+	block := request.NewFile.Blocks[0]
 	createBlock(file_rpc.Filename, block.BlockNode, block.BlockID, block.Data)
 
 	for _, replica_hash := range getReplicas() {
