@@ -7,7 +7,6 @@ import (
 	"cs425/mp3/shared"
 	"fmt"
 	"hash/fnv"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -44,23 +43,13 @@ func hydfsCreate(local_filename string, hydfs_filename string) (bool, error) {
 	if !enoughMembers() {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
-	file, err := os.Open(local_filename)
-	if err != nil {
-		hydfs_log.Println("[ERROR] Open file error:", err)
-		return false, nil
-	}
-	defer file.Close()
-
-	// read contents of file into memory
-	contents, err := io.ReadAll(file)
-	if err != nil {
-		hydfs_log.Println("[ERROR] Open file error:", err)
-		return false, nil
-	}
-
+	// read in file and hash filename
+	contents := readFile(local_filename)
 	file_hash := hashFilename(hydfs_filename)
-	target_hash, target := getFileTarget(file_hash)
+	// get target node based on hashed filename
+	target_hash, target := getMainFileTarget(file_hash)
 	hydfs_log.Printf("%s hash to %d", hydfs_filename, file_hash)
+	// construct rpc structures and make rpc call
 	block := []*repl.FileBlock{{BlockNode: target_hash, BlockID: 0, Data: contents}}
 	file_rpc := &repl.File{Filename: hydfs_filename, Blocks: block}
 	hydfs_log.Printf("[INFO] Sending create request to node %d", target.ID)
@@ -103,16 +92,23 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 		hydfs_log.Println("[INFO] Handling membership change")
 		members.Init()
 		for _, member := range swim.Members.MemberMap {
-			members.Set(member.Hash, member)
+			if member.State == shared.NodeState_ALIVE {
+				members.Set(member.Hash, member)
+			}
 		}
 		members.Set(node_hash, this_member)
-
-		// TODO: handle re-replication
+		hydfs_log.Println("[INFO] Reset members")
 		// check if became primary replica for new range
 		// make re-replication calls to secondary replicas
-		// for _, repl_hash := range getReplicas() {
-		//
-		// }
+		primary_replica_filehashes := getPrimaryReplicaFiles()
+		// only make replication calls if primary files owned > 0 and enough members in group
+		if len(primary_replica_filehashes) > 0 && enoughMembers() {
+			hydfs_log.Println("[INFO] making replication requests")
+			for _, repl_hash := range getReplicas() {
+				target_replica := members.Get(repl_hash).Value.(*shared.MemberInfo)
+				go sendReplicationRPC(target_replica, primary_replica_filehashes)
+			}
+		}
 
 		mu.Unlock()
 		swim.Members.Mu.Unlock()

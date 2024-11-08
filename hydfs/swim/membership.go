@@ -21,7 +21,7 @@ var (
 	PROTOCAL_PERIOD float64 = 2.0
 	K               int     = 1
 	TTL             int32   = 4
-	M               int     = 10
+	M               int     = 15
 )
 
 var (

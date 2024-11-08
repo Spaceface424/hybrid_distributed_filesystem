@@ -114,7 +114,7 @@ func PrintMembershipList() {
 		i++
 	}
 	sort.Slice(member_slice, func(i, j int) bool {
-		return member_slice[i].ID < member_slice[j].ID
+		return member_slice[i].Hash < member_slice[j].Hash
 	})
 
 	res := "\n-------------------------------------[MEMBERSHIP LIST]-------------------------------------\n\n"
