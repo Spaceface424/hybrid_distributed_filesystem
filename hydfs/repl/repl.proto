@@ -10,6 +10,11 @@ service Replication {
   rpc RequestGet (GetData) returns (File) {}
   rpc RequestAppend (File) returns (RequestAck) {}
 }
+message AppendData {
+  string Filename = 1;
+  FileBlock Block = 2;
+}
+
 message GetData {
   string Filename = 1;
 }

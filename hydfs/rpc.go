@@ -124,27 +124,28 @@ func (s *HydfsRPCserver) RequestGet(ctx context.Context, request *repl.GetData) 
     mu.Lock()
     defer mu.Unlock()
 
-
     hydfs_log.Printf("[INFO] RPC Serving get request for file: %", request.Filename)
     file_name := request.Filename
-    file_hash := hashFilename(file_name)
-    file_blocks := getFile(file_name, file_hash)
+    file_blocks := getBlocks(file_name, true)
     result := &repl.File{Filename: file_name, Blocks: file_blocks}
     return result, nil
 }
 
 
-func (s *HydfsRPCserver) RequestAppend(ctx context.Context, request *repl.File) (*repl.RequestAck, error) {
+func (s *HydfsRPCserver) RequestAppend(ctx context.Context, request *repl.AppendData) (*repl.RequestAck, error) {
     mu.Lock()
     defer mu.Unlock()
 
-
     file_hash := hashFilename(request.Filename)
+	block := request.Block
     //fails if file does not exist in files
     if files.Get(file_hash) == nil {
         hydfs_log.Printf("[WARNING] RPC Serving append request file %s does not exist", request.Filename)
         return &repl.RequestAck{OK: false}, nil
     }
-   
+	local_file := files.Get(file_hash).Value.(File) //idk if this is how it works, also seems inconsistent across replicas
+	local_file.nextID += 1
+	block.BlockID = local_file.nextID
+	createBlock(request.Filename, block.BlockNode, block.BlockID, block.Data)
     return &repl.RequestAck{OK: true}, nil
 }

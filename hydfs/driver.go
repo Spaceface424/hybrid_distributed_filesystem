@@ -80,8 +80,11 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
     if file == nil {
         return false, fmt.Errorf("Error: GetRPC Call had an error")
     }
-    block := file.Blocks[0]
-    createBlock(local_filename, block.BlockNode, block.BlockID, block.Data)
+	for _, block := range file.Blocks {
+		createBlock(local_filename, block.BlockNode, block.BlockID, block.Data)
+	}
+    // block := file.Blocks[0]
+    // createBlock(local_filename, block.BlockNode, block.BlockID, block.Data) //IDK if this works
     return true, nil
 }
 
@@ -90,10 +93,23 @@ func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
     if !enoughMembers() {
         return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
     }
+	file, err := os.Open(local_filename)
+	if err != nil {
+		hydfs_log.Println("[ERROR] Open file error:", err)
+		return false, nil
+	}
+	defer file.Close()
+	contents, err := io.ReadAll(file)
+	if err != nil {
+		hydfs_log.Println("[ERROR] Open file error:", err)
+		return false, nil
+	}
+
     file_hash := hashFilename(hydfs_filename)
     _, target := getFileTarget(file_hash)
-    data := getBlocks(local_filename, true)
-    append_rpc := &repl.File{Filename: hydfs_filename, Blocks: data}
+    data := &repl.FileBlock{BlockNode: file_hash, BlockID: 9999, Data: contents} //BlockID has temp val, will be set in rpc call
+    append_rpc := &repl.AppendData{Filename: hydfs_filename, Block: data}
+	hydfs_log.Printf("[INFO] Sending append request for file %s to node %d", hydfs_filename, target.ID)
     return sendAppendRPC(target, append_rpc), nil
 }
 

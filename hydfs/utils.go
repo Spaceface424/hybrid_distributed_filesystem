@@ -48,8 +48,8 @@ func cleanupDir() {
 
 // Get random replica index
 // Consistent for same node
-func getReplicaIdx(main_idx int, length int, cur_node_hash int32) int {
-	return (main_idx + (int(cur_node_hash) % REPL_FACTOR)) % length
+func getReplicaIdx(cur_node_hash uint32) uint32 {
+	return cur_node_hash % REPL_FACTOR
 }
 
 // Hash a filename
@@ -287,13 +287,4 @@ func printMemberDict() {
 	}
 	res += "-----------------------------\n"
 	fmt.Print(res)
-}
-
-func getFile(file_name string, file_hash uint32) []*repl.FileBlock {
-    //exit if file doesnt exist? fatal out
-    //use oliver func
-    if !fileDirExists(file_name) {
-        hydfs_log.Fatal("[Error] Get file error, doesn't exist")
-    }
-    return getBlocks(file_name, true)
 }

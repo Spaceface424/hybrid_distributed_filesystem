@@ -82,7 +82,7 @@ func sendGetRPC(target *shared.MemberInfo, file_rpc *repl.GetData) *repl.File {
 }
 
 
-func sendAppendRPC(target *shared.MemberInfo, file_rpc *repl.File) bool {
+func sendAppendRPC(target *shared.MemberInfo, file_rpc *repl.AppendData) bool {
     target_addr := strings.Split(target.Address, ":")[0] + ":" + GRPC_PORT
     conn, err := grpc.NewClient(target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
     if err != nil {
