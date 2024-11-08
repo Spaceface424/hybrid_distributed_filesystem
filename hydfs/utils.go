@@ -1,12 +1,15 @@
 package hydfs
 
 import (
+	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/hydfs/swim"
 	"cs425/mp3/shared"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 )
 
 // Prints the files currently stored at this node
@@ -185,7 +188,7 @@ func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 }
 
 // get all file hashes that current node is the primary replica for
-func getPrimaryReplicaFiles() {
+func getPrimaryReplicaFiles() []uint32 {
 	file_hashes := make([]uint32, 0)
 	prev_node := members.Get(this_member.Hash).Prev()
 	if prev_node == nil {
@@ -208,6 +211,67 @@ func getPrimaryReplicaFiles() {
 			}
 		}
 	}
+
+	return file_hashes
+}
+
+// get all blocks stored at the current node for a given filename
+// if data false, dont include data in block structs
+func getBlocks(filename string, data bool) []*repl.FileBlock {
+	files, err := os.ReadDir(HYDFS_DIR + "/" + filename)
+	if err != nil {
+		hydfs_log.Fatal("[ERROR] Failed to read directory:", err)
+	}
+
+	res_blocks := make([]*repl.FileBlock, 0)
+	for _, file := range files {
+		res_blocks = append(res_blocks, constructBlock(filename, file.Name(), data))
+	}
+	return res_blocks
+}
+
+// create block struct from block filename
+// if data false, dont include data in block struct
+func constructBlock(filename string, blockname string, data bool) *repl.FileBlock {
+	res_block := &repl.FileBlock{}
+
+	split_string := ".hydfs."
+	i := strings.LastIndex(blockname, split_string)
+	block_info := strings.Split(blockname[i+len(split_string):], ".")
+
+	block_node, err := strconv.Atoi(block_info[0])
+	if err != nil {
+		hydfs_log.Fatal("[ERROR] parse int error:", err)
+	}
+	res_block.BlockNode = uint32(block_node)
+
+	block_id, err := strconv.Atoi(block_info[1])
+	if err != nil {
+		hydfs_log.Fatal("[ERROR] parse int error:", err)
+	}
+	res_block.BlockID = uint32(block_id)
+
+	if data {
+		res_block.Data = readFile(fmt.Sprintf("%s/%s/%s", HYDFS_DIR, filename, blockname))
+	}
+
+	return res_block
+}
+
+// read in local_filename into byte slice
+func readFile(local_filename string) []byte {
+	file, err := os.Open(local_filename)
+	if err != nil {
+		hydfs_log.Fatal("[ERROR] Open file error:", err)
+	}
+	defer file.Close()
+
+	// read contents of file into memory
+	contents, err := io.ReadAll(file)
+	if err != nil {
+		hydfs_log.Fatal("[ERROR] Open file error:", err)
+	}
+	return contents
 }
 
 func printMemberDict() {
