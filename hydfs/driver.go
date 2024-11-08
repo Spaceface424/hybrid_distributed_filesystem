@@ -67,21 +67,34 @@ func hydfsCreate(local_filename string, hydfs_filename string) (bool, error) {
 	return sendCreateRPC(target, file_rpc), nil
 }
 
-func hydfsGet(hydfs_filename string, local_filename string) ([]byte, error) {
+func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 	// TODO:
-	if !enoughMembers() {
-		return nil, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
-	}
-
-	return make([]byte, 0), nil
+    if !enoughMembers() {
+        return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
+    }
+    file_hash := hashFilename(hydfs_filename)
+    _, target := getFileTarget(file_hash)
+    get_rpc := &repl.GetData{Filename: hydfs_filename}
+    hydfs_log.Printf("[INFO] Sending get request for file %s to node %d", hydfs_filename, target.ID)
+    file := sendGetRPC(target, get_rpc)
+    if file == nil {
+        return false, fmt.Errorf("Error: GetRPC Call had an error")
+    }
+    block := file.Blocks[0]
+    createBlock(local_filename, block.BlockNode, block.BlockID, block.Data)
+    return true, nil
 }
 
 func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	// TODO:
-	if !enoughMembers() {
-		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
-	}
-	return false, nil
+    if !enoughMembers() {
+        return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
+    }
+    file_hash := hashFilename(hydfs_filename)
+    _, target := getFileTarget(file_hash)
+    data := getBlocks(local_filename, true)
+    append_rpc := &repl.File{Filename: hydfs_filename, Blocks: data}
+    return sendAppendRPC(target, append_rpc), nil
 }
 
 func hydfsMerge(filepath string) (bool, error) {

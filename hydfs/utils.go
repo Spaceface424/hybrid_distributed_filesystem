@@ -288,3 +288,12 @@ func printMemberDict() {
 	res += "-----------------------------\n"
 	fmt.Print(res)
 }
+
+func getFile(file_name string, file_hash uint32) []*repl.FileBlock {
+    //exit if file doesnt exist? fatal out
+    //use oliver func
+    if !fileDirExists(file_name) {
+        hydfs_log.Fatal("[Error] Get file error, doesn't exist")
+    }
+    return getBlocks(file_name, true)
+}

@@ -119,3 +119,32 @@ func (s *HydfsRPCserver) RequestReplicaCreate(ctx context.Context, request *repl
 
 	return &repl.RequestAck{OK: true}, nil
 }
+
+func (s *HydfsRPCserver) RequestGet(ctx context.Context, request *repl.GetData) (*repl.File, error) {
+    mu.Lock()
+    defer mu.Unlock()
+
+
+    hydfs_log.Printf("[INFO] RPC Serving get request for file: %", request.Filename)
+    file_name := request.Filename
+    file_hash := hashFilename(file_name)
+    file_blocks := getFile(file_name, file_hash)
+    result := &repl.File{Filename: file_name, Blocks: file_blocks}
+    return result, nil
+}
+
+
+func (s *HydfsRPCserver) RequestAppend(ctx context.Context, request *repl.File) (*repl.RequestAck, error) {
+    mu.Lock()
+    defer mu.Unlock()
+
+
+    file_hash := hashFilename(request.Filename)
+    //fails if file does not exist in files
+    if files.Get(file_hash) == nil {
+        hydfs_log.Printf("[WARNING] RPC Serving append request file %s does not exist", request.Filename)
+        return &repl.RequestAck{OK: false}, nil
+    }
+   
+    return &repl.RequestAck{OK: true}, nil
+}

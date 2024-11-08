@@ -57,3 +57,51 @@ func sendCreateReplicaRPC(target *shared.MemberInfo, file_rpc *repl.File) bool {
 	}
 	return response.OK
 }
+
+func sendGetRPC(target *shared.MemberInfo, file_rpc *repl.GetData) *repl.File {
+    target_addr := strings.Split(target.Address, ":")[0] + ":" + GRPC_PORT
+    conn, err := grpc.NewClient(target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+    if err != nil {
+        hydfs_log.Printf("[WARNING] gRPC did not connect: %v", err)
+        return nil
+    }
+    defer conn.Close()
+
+
+    client := repl.NewReplicationClient(conn)
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
+    defer cancel()
+
+
+    response, err := client.RequestGet(ctx, file_rpc)
+    if err != nil {
+        hydfs_log.Printf("[WARNING] gRPC call error: %v", err)
+        return nil
+    }
+    return response
+}
+
+
+func sendAppendRPC(target *shared.MemberInfo, file_rpc *repl.File) bool {
+    target_addr := strings.Split(target.Address, ":")[0] + ":" + GRPC_PORT
+    conn, err := grpc.NewClient(target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+    if err != nil {
+        hydfs_log.Printf("[WARNING] gRPC did not connect: %v", err)
+        return false
+    }
+    defer conn.Close()
+
+
+    client := repl.NewReplicationClient(conn)
+    ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
+    defer cancel()
+
+
+    // request_data := &repl.CreateData{NewFile: file_rpc}
+    response, err := client.RequestAppend(ctx, file_rpc)
+    if err != nil {
+        hydfs_log.Printf("[WARNING] gRPC call error: %v", err)
+        return false
+    }
+    return response.OK
+}
