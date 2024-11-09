@@ -57,8 +57,8 @@ func cleanupDir() {
 
 // Get random replica index
 // Consistent for same node
-func getReplicaIdx(main_idx int, length int, cur_node_hash uint32) int {
-	return (main_idx + int(cur_node_hash%REPL_FACTOR)) % length
+func getReplicaIdx(cur_node_hash uint32) uint32 {
+	return cur_node_hash % REPL_FACTOR
 }
 
 // Hash a filename
