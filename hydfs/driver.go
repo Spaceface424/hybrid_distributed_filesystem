@@ -47,10 +47,10 @@ func hydfsCreate(local_filename string, hydfs_filename string) (bool, error) {
 	contents := readFile(local_filename)
 	file_hash := hashFilename(hydfs_filename)
 	// get target node based on hashed filename
-	target_hash, target := getMainFileTarget(file_hash)
+	_, target := getMainFileTarget(file_hash)
 	hydfs_log.Printf("%s hash to %d", hydfs_filename, file_hash)
 	// construct rpc structures and make rpc call
-	block := []*repl.FileBlock{{BlockNode: target_hash, BlockID: 0, Data: contents}}
+	block := []*repl.FileBlock{{Data: contents}}
 	file_rpc := &repl.File{Filename: hydfs_filename, Blocks: block}
 	hydfs_log.Printf("[INFO] Sending create request to node %d, hash %d", target.ID, target.Hash)
 	return sendCreateRPC(target, file_rpc), nil
@@ -128,6 +128,8 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 			}
 		}
 
+		// check if files left replication range
+
 		mu.Unlock()
 		swim.Members.Mu.Unlock()
 	}
@@ -196,6 +198,12 @@ func commandLoop() {
 			// TODO: merge
 		case "mem":
 			printMemberDict()
+		case "ls":
+			if len(commandParts) != 2 {
+				fmt.Println("usage: ls HyDFSfilename")
+				continue
+			}
+			ls(commandParts[1])
 		default:
 			fmt.Println("Unknown command...")
 		}

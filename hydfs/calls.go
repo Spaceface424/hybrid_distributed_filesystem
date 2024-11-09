@@ -62,7 +62,7 @@ func sendCreateReplicaRPC(target *shared.MemberInfo, file_rpc *repl.File) bool {
 func sendReplicationRPC(target *shared.MemberInfo, primary_replica_filehashes []uint32) bool {
 	rpc_files := make([]*repl.File, 0)
 	for _, file_hash := range primary_replica_filehashes {
-		cur_file := files.Get(file_hash).Value.(File)
+		cur_file := files.Get(file_hash).Value.(*File)
 		rpc_files = append(rpc_files, &repl.File{Filename: cur_file.filename, Blocks: getBlocks(cur_file.filename, false)})
 	}
 	rpc_request_files := &repl.RequestFiles{Files: rpc_files}
@@ -169,4 +169,35 @@ func sendAppendReplicaRPC(target *shared.MemberInfo, file_rpc *repl.AppendData) 
 		return false
 	}
 	return response.OK
+}
+
+func sendLsRPC(target *shared.MemberInfo, hydfs_filename string, ch chan *shared.MemberInfo) {
+	target_addr := strings.Split(target.Address, ":")[0] + ":" + GRPC_PORT
+	hydfs_log.Printf("[INFO] RPC Sending ls request to %s for file: %s", target_addr, hydfs_filename)
+	conn, err := grpc.NewClient(target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		hydfs_log.Printf("[WARNING] gRPC did not connect: %v", err)
+		ch <- nil
+		return
+	}
+	defer conn.Close()
+
+	client := repl.NewReplicationClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
+	defer cancel()
+
+	request_data := &repl.File{Filename: hydfs_filename}
+	response, err := client.RequestList(ctx, request_data)
+	if err != nil {
+		hydfs_log.Printf("[WARNING] gRPC call error: %v", err)
+		ch <- nil
+		return
+	}
+
+	if response.OK {
+		ch <- target
+	} else {
+		ch <- nil
+	}
+	return
 }
