@@ -1,12 +1,10 @@
 package hydfs
 
 import (
-	"bytes"
 	"context"
 	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/shared"
 	"net"
-	"sort"
 
 	"google.golang.org/grpc"
 )
@@ -139,30 +137,15 @@ func (s *HydfsRPCserver) RequestGet(ctx context.Context, request *repl.RequestGe
 	defer mu.Unlock()
 
 	hydfs_log.Printf("[INFO] RPC Serving get request for file: %s", request.Filename)
-	file_name := request.Filename
+	filename := request.Filename
 	// check if file exists
-	if files.Get(hashFilename(file_name)) == nil {
+	if files.Get(hashFilename(filename)) == nil {
 		return nil, nil
 	}
-	file_blocks := getBlocks(file_name, true)
-
-	// sort blocks by blockNode then blockID
-	sort.Slice(file_blocks, func(i, j int) bool {
-		if file_blocks[i].BlockNode != file_blocks[j].BlockNode {
-			return file_blocks[i].BlockNode < file_blocks[j].BlockNode
-		}
-		return file_blocks[i].BlockID < file_blocks[j].BlockID
-	})
-
-	// allocate []byte and read in all blocks to it
-	var buffer bytes.Buffer
-	for _, block := range file_blocks {
-		block_data := readFile(blockFilepath(file_name, block.BlockNode, block.BlockID))
-		buffer.Grow(len(block_data))
-		buffer.Write(block_data)
-	}
-
-	return &repl.ResponseGetData{FileData: buffer.Bytes()}, nil
+	// get blocks and sort and read into memory
+	file_blocks := getBlocks(filename, true)
+	sortBlocks(file_blocks)
+	return &repl.ResponseGetData{FileData: readAllBlocks(filename, file_blocks)}, nil
 }
 
 func (s *HydfsRPCserver) RequestAppend(ctx context.Context, request *repl.AppendData) (*repl.RequestAck, error) {

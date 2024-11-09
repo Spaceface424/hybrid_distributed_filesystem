@@ -64,7 +64,6 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 	file_hash := hashFilename(hydfs_filename)
 	_, target := getReplicaFileTarget(file_hash)
 	get_rpc := &repl.RequestGetData{Filename: hydfs_filename}
-	hydfs_log.Printf("[INFO] Sending get request for file %s to node %d, hash %d", hydfs_filename, target.ID, target.Hash)
 	hydfs_filedata := sendGetRPC(target, get_rpc)
 	if hydfs_filedata == nil {
 		return false, fmt.Errorf("Error: GetRPC Call had an error")
