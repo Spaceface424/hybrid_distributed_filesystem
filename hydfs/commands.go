@@ -3,6 +3,7 @@ package hydfs
 import (
 	"cs425/mp3/shared"
 	"fmt"
+	"sort"
 )
 
 func ls(hydfs_filename string) {
@@ -20,6 +21,10 @@ func ls(hydfs_filename string) {
 			file_members = append(file_members, v)
 		}
 	}
+
+	sort.Slice(file_members, func(i int, j int) bool {
+		return file_members[i].Hash < file_members[j].Hash
+	})
 
 	res := fmt.Sprintf("------------[LIST FILE %s, HASH %d]-----------\n", hydfs_filename, hashFilename(hydfs_filename))
 	for _, v := range file_members {

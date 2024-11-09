@@ -4,6 +4,7 @@ import (
 	"context"
 	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/shared"
+	"log"
 	"strings"
 	"time"
 
@@ -60,6 +61,9 @@ func sendCreateReplicaRPC(target *shared.MemberInfo, file_rpc *repl.File) bool {
 
 // Send re-replication request to target replica node
 func sendReplicationRPC(target *shared.MemberInfo, primary_replica_filehashes []uint32) bool {
+	// measure re-replication time
+	start := time.Now()
+
 	rpc_files := make([]*repl.File, 0)
 	for _, file_hash := range primary_replica_filehashes {
 		cur_file := files.Get(file_hash).Value.(*File)
@@ -94,6 +98,8 @@ func sendReplicationRPC(target *shared.MemberInfo, primary_replica_filehashes []
 	rpc_request_data := fillData(response_missing)
 	response_ack, err := client.RequestSend(ctx, rpc_request_data)
 
+	elapsed := time.Since(start)
+	log.Printf("[INFO] Re-replication took %v ms", elapsed.Milliseconds())
 	return response_ack.OK
 }
 
