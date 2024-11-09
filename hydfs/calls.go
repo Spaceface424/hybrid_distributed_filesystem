@@ -199,5 +199,4 @@ func sendLsRPC(target *shared.MemberInfo, hydfs_filename string, ch chan *shared
 	} else {
 		ch <- nil
 	}
-	return
 }
