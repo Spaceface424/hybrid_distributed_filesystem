@@ -302,7 +302,19 @@ func commandLoop() {
 		case "mem":
 			printMemberDict()
 		case "getfromreplica":
-			
+			if len(commandParts) != 4 {
+				fmt.Println("usage: get VMAddress HyDFSfilename localfilename")
+				continue
+			}
+			vm_address := commandParts[1]
+			hydfs_filename := commandParts[2]
+			local_filename := commandParts[3]
+			_, err := hydfsVMGet(hydfs_filename, local_filename, vm_address)
+			if err != nil {
+				fmt.Println("Get error:", err)
+				continue
+			}
+			fmt.Printf("Get %s from VM Address %s into %s\n", hydfs_filename, vm_address, local_filename)
 		default:
 			fmt.Println("Unknown command...")
 		}
