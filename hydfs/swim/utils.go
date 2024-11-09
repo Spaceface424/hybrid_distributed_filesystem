@@ -117,7 +117,7 @@ func PrintMembershipList() {
 		return member_slice[i].Hash < member_slice[j].Hash
 	})
 
-	res := "\n-------------------------------------[MEMBERSHIP LIST]-------------------------------------\n\n"
+	res := fmt.Sprintf("\n-------------------------------------[NODE %d MEMBERSHIP LIST]-------------------------------------\n\n", cur_member.ID)
 	for _, v := range member_slice {
 		var self string
 		if v.ID == cur_member.ID {
