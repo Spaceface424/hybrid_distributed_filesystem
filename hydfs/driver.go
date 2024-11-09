@@ -117,7 +117,7 @@ func hydfsVMGet(hydfs_filename string, local_filename string, vm_address string)
 	}
 	file_hash := hashFilename(hydfs_filename)
 	//cache check
-	if enable_cache && cache[file_hash] != nil {
+	if enable_cache && cache[file_hash] != nil && vm_address == this_member.Address{
 		cached_file := cache[file_hash]
 		local_file, err := os.Create(local_filename)
 		if err != nil {
@@ -125,13 +125,13 @@ func hydfsVMGet(hydfs_filename string, local_filename string, vm_address string)
 		}
 		defer local_file.Close()
 		local_file.Write(cached_file.file)
-		hydfs_log.Printf("[INFO] GET Wrote %s into %s, pulled from cache", hydfs_filename, local_filename)
+		hydfs_log.Printf("[INFO] Replica_GET Wrote %s into %s, pulled from cache", hydfs_filename, local_filename)
 		return true, nil
 	}
 
 	_, target := getVMFileTarget(file_hash, vm_address)
 	if target == nil {
-		return false, fmt.Errorf("[ERROR] VM_GET could not find node with address %s", vm_address)
+		return false, fmt.Errorf("[ERROR] Replica_GET could not find node with address %s", vm_address)
 	}
 	get_rpc := &repl.RequestGetData{Filename: hydfs_filename}
 	hydfs_filedata := sendGetRPC(target, get_rpc)
@@ -148,10 +148,10 @@ func hydfsVMGet(hydfs_filename string, local_filename string, vm_address string)
 					min_key = key
 				}
 			}
-			hydfs_log.Printf("[INFO] GET caused exceeded capacity in cache, deleted oldest entry")
+			hydfs_log.Printf("[INFO] Replica_GET caused exceeded capacity in cache, deleted oldest entry")
 			delete(cache, min_key)
 		}
-		hydfs_log.Printf("[INFO] GET Wrote %s into the cache", local_filename)
+		hydfs_log.Printf("[INFO] Replica_GET Wrote %s into the cache", local_filename)
 		new_cache := &CachedFile{timestamp: cache_ts, file: hydfs_filedata}
 		cache_ts += 1
 		cache[file_hash] = new_cache
@@ -162,7 +162,7 @@ func hydfsVMGet(hydfs_filename string, local_filename string, vm_address string)
 	}
 	defer local_file.Close()
 	local_file.Write(hydfs_filedata)
-	hydfs_log.Printf("[INFO] GET Wrote %s into %s", hydfs_filename, local_filename)
+	hydfs_log.Printf("[INFO] Replica_GET Wrote %s into %s", hydfs_filename, local_filename)
 	return true, nil
 }
 
