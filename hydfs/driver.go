@@ -44,14 +44,49 @@ func hydfsCreate(local_filename string, hydfs_filename string) (bool, error) {
 	if !enoughMembers() {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
+	// read in file and hash filename
+	contents := readFile(local_filename)
+	file_hash := hashFilename(hydfs_filename)
+	// get target node based on hashed filename
+	target_hash, target := getMainFileTarget(file_hash)
+	hydfs_log.Printf("%s hash to %d", hydfs_filename, file_hash)
+	// construct rpc structures and make rpc call
+	block := []*repl.FileBlock{{BlockNode: target_hash, BlockID: 0, Data: contents}}
+	file_rpc := &repl.File{Filename: hydfs_filename, Blocks: block}
+	hydfs_log.Printf("[INFO] Sending create request to node %d", target.ID)
+	return sendCreateRPC(target, file_rpc), nil
+}
+
+func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
+	if !enoughMembers() {
+		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
+	}
+	file_hash := hashFilename(hydfs_filename)
+	_, target := getFileTarget(file_hash)
+	get_rpc := &repl.GetData{Filename: hydfs_filename}
+	hydfs_log.Printf("[INFO] Sending get request for file %s to node %d", hydfs_filename, target.ID)
+	file := sendGetRPC(target, get_rpc)
+	if file == nil {
+		return false, fmt.Errorf("Error: GetRPC Call had an error")
+	}
+	for _, block := range file.Blocks {
+		createBlock(local_filename, block.BlockNode, block.BlockID, block.Data)
+	}
+	// block := file.Blocks[0]
+	// createBlock(local_filename, block.BlockNode, block.BlockID, block.Data) //IDK if this works
+	return true, nil
+}
+
+func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
+	if !enoughMembers() {
+		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
+	}
 	file, err := os.Open(local_filename)
 	if err != nil {
 		hydfs_log.Println("[ERROR] Open file error:", err)
 		return false, nil
 	}
 	defer file.Close()
-
-	// read contents of file into memory
 	contents, err := io.ReadAll(file)
 	if err != nil {
 		hydfs_log.Println("[ERROR] Open file error:", err)
@@ -59,29 +94,11 @@ func hydfsCreate(local_filename string, hydfs_filename string) (bool, error) {
 	}
 
 	file_hash := hashFilename(hydfs_filename)
-	target_hash, target := getFileTarget(file_hash)
-	hydfs_log.Printf("%s hash to %d", hydfs_filename, file_hash)
-	block := []*repl.FileBlock{{BlockNode: target_hash, BlockID: 0, Data: contents}}
-	file_rpc := &repl.File{Filename: hydfs_filename, Blocks: block}
-	hydfs_log.Printf("[INFO] Sending create request to node %d", target.ID)
-	return sendCreateRPC(target, file_rpc), nil
-}
-
-func hydfsGet(hydfs_filename string, local_filename string) ([]byte, error) {
-	// TODO:
-	if !enoughMembers() {
-		return nil, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
-	}
-
-	return make([]byte, 0), nil
-}
-
-func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
-	// TODO:
-	if !enoughMembers() {
-		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
-	}
-	return false, nil
+	_, target := getFileTarget(file_hash)
+	data := &repl.FileBlock{BlockNode: file_hash, BlockID: 9999, Data: contents} // BlockID has temp val, will be set in rpc call
+	append_rpc := &repl.AppendData{Filename: hydfs_filename, Block: data}
+	hydfs_log.Printf("[INFO] Sending append request for file %s to node %d", hydfs_filename, target.ID)
+	return sendAppendRPC(target, append_rpc), nil
 }
 
 func hydfsMerge(filepath string) (bool, error) {
@@ -103,16 +120,23 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 		hydfs_log.Println("[INFO] Handling membership change")
 		members.Init()
 		for _, member := range swim.Members.MemberMap {
-			members.Set(member.Hash, member)
+			if member.State == shared.NodeState_ALIVE {
+				members.Set(member.Hash, member)
+			}
 		}
 		members.Set(node_hash, this_member)
-
-		// TODO: handle re-replication
+		hydfs_log.Println("[INFO] Reset members")
 		// check if became primary replica for new range
 		// make re-replication calls to secondary replicas
-		// for _, repl_hash := range getReplicas() {
-		//
-		// }
+		primary_replica_filehashes := getPrimaryReplicaFiles()
+		// only make replication calls if primary files owned > 0 and enough members in group
+		if len(primary_replica_filehashes) > 0 && enoughMembers() {
+			hydfs_log.Println("[INFO] making replication requests")
+			for _, repl_hash := range getReplicas() {
+				target_replica := members.Get(repl_hash).Value.(*shared.MemberInfo)
+				go sendReplicationRPC(target_replica, primary_replica_filehashes)
+			}
+		}
 
 		mu.Unlock()
 		swim.Members.Mu.Unlock()

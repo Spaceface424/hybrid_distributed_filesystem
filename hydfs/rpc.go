@@ -29,6 +29,7 @@ func StartGRPCServer(host string) {
 // Receive a list of files that need to be replicated
 // Return list of files missing from local copies
 func (s *HydfsRPCserver) RequestAsk(ctx context.Context, request *repl.RequestFiles) (*repl.RequestMissing, error) {
+	hydfs_log.Println("[INFO] RPC Serving request ask")
 	res := &repl.RequestMissing{MissingFiles: make([]*repl.File, 0)}
 
 	mu.Lock()
@@ -36,6 +37,7 @@ func (s *HydfsRPCserver) RequestAsk(ctx context.Context, request *repl.RequestFi
 
 	// iterate over files from request and check if exists on current node
 	// reply with missing file blocks
+	num_blocks_missing := 0
 	for _, file := range request.Files {
 		cur_file := &repl.File{Filename: file.Filename, Blocks: make([]*repl.FileBlock, 0)}
 		// if file doesn't exist then add all blocks to missing list
@@ -48,9 +50,12 @@ func (s *HydfsRPCserver) RequestAsk(ctx context.Context, request *repl.RequestFi
 				}
 			}
 		}
-		res.MissingFiles = append(res.MissingFiles, cur_file)
+		if len(cur_file.Blocks) != 0 {
+			res.MissingFiles = append(res.MissingFiles, cur_file)
+			num_blocks_missing += len(cur_file.Blocks)
+		}
 	}
-
+	hydfs_log.Printf("[INFO] RPC requesting %v missing blocks", num_blocks_missing)
 	return res, nil
 }
 
@@ -58,7 +63,13 @@ func (s *HydfsRPCserver) RequestAsk(ctx context.Context, request *repl.RequestFi
 // Create the new blocks on current node
 // Return OK
 func (s *HydfsRPCserver) RequestSend(ctx context.Context, request *repl.RequestData) (*repl.RequestAck, error) {
+	hydfs_log.Println("[INFO] RPC serving request send")
 	for _, file := range request.DataFiles {
+		filehash := hashFilename(file.Filename)
+		if files.Get(filehash) == nil {
+			new_file := File{filename: file.Filename, nextID: 0}
+			files.Set(filehash, new_file)
+		}
 		for _, block := range file.Blocks {
 			createBlock(file.Filename, block.BlockNode, block.BlockID, block.Data)
 		}
@@ -87,8 +98,9 @@ func (s *HydfsRPCserver) RequestCreate(ctx context.Context, request *repl.Create
 	files.Set(file_hash, file_struct)
 	block := request.NewFile.Blocks[0]
 	createBlock(file_rpc.Filename, block.BlockNode, block.BlockID, block.Data)
-
-	for _, replica_hash := range getReplicas() {
+	replicas := getReplicas()
+	hydfs_log.Printf("[INFO] RPC Replicating create request to replicas: %v", replicas)
+	for _, replica_hash := range replicas {
 		// send create request to neighbor nodes
 		replica := members.Get(replica_hash)
 		if replica == nil {
@@ -117,5 +129,66 @@ func (s *HydfsRPCserver) RequestReplicaCreate(ctx context.Context, request *repl
 
 	createBlock(file_rpc.Filename, block.BlockNode, block.BlockID, block.Data)
 
+	return &repl.RequestAck{OK: true}, nil
+}
+
+func (s *HydfsRPCserver) RequestGet(ctx context.Context, request *repl.GetData) (*repl.File, error) {
+    mu.Lock()
+    defer mu.Unlock()
+
+    hydfs_log.Printf("[INFO] RPC Serving get request for file: %", request.Filename)
+    file_name := request.Filename
+    file_blocks := getBlocks(file_name, true)
+    result := &repl.File{Filename: file_name, Blocks: file_blocks}
+    return result, nil
+}
+
+
+func (s *HydfsRPCserver) RequestAppend(ctx context.Context, request *repl.AppendData) (*repl.RequestAck, error) {
+    mu.Lock()
+    defer mu.Unlock()
+
+    file_hash := hashFilename(request.Filename)
+	block := request.Block
+    //fails if file does not exist in files
+    if files.Get(file_hash) == nil {
+        hydfs_log.Printf("[WARNING] RPC Serving append request file %s does not exist", request.Filename)
+        return &repl.RequestAck{OK: false}, nil
+    }
+	local_file := files.Get(file_hash).Value.(File) 
+	block.BlockID = local_file.nextID
+	local_file.nextID += 1
+	hydfs_log.Printf("[INFO] RPC Serving append request for file: %", request.Filename)
+	createBlock(request.Filename, block.BlockNode, block.BlockID, block.Data)
+
+	for _, replica_hash := range getReplicas() {
+		// send append request to neighbor nodes
+		replica := members.Get(replica_hash)
+		if replica == nil {
+			hydfs_log.Println("[WARNING] replica == nil")
+			continue
+		}
+		go sendAppendReplicaRPC(replica.Value.(*shared.MemberInfo), request)
+	}
+
+    return &repl.RequestAck{OK: true}, nil
+}
+
+func (s *HydfsRPCserver) RequestReplicaAppend(ctx context.Context, request *repl.AppendData) (*repl.RequestAck, error) {
+	mu.Lock()
+    defer mu.Unlock()
+
+    file_hash := hashFilename(request.Filename)
+	block := request.Block
+    //fails if file does not exist in files
+    if files.Get(file_hash) == nil {
+        hydfs_log.Printf("[WARNING] RPC Serving replica append request file %s does not exist", request.Filename)
+        return &repl.RequestAck{OK: false}, nil
+    }
+	local_file := files.Get(file_hash).Value.(File) 
+	block.BlockID = local_file.nextID
+	local_file.nextID += 1
+	hydfs_log.Printf("[INFO] RPC Serving replica append request for file: %", request.Filename)
+	createBlock(request.Filename, block.BlockNode, block.BlockID, block.Data)
 	return &repl.RequestAck{OK: true}, nil
 }

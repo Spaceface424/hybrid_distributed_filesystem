@@ -19,7 +19,16 @@ func listFiles() {
 	res := fmt.Sprintf("---------------------------- NODE %d, HASH %d FILES -----------------------\n", node_id, node_hash)
 	cur_file := files.Front()
 	for range files.Len() {
-		res += fmt.Sprintf("Hash: %d\tFilename: %s\n", cur_file.Key().(uint32), cur_file.Element().Value.(File).filename)
+		filehash := cur_file.Key().(uint32)
+		file_struct := cur_file.Value.(File)
+		res += fmt.Sprintf("Hash: %d\tFilename: %s\n", filehash, file_struct.filename)
+		res += "Blocks:\n"
+		blocks := getBlocks(file_struct.filename, false)
+		for _, block := range blocks {
+			res += fmt.Sprintf("\tNode: %d\t ID:%d\n", block.BlockNode, block.BlockID)
+		}
+		res += "\n"
+		cur_file = cur_file.Next()
 	}
 	res += "--------------------------------------------------------------------------\n"
 	fmt.Print(res)
@@ -48,8 +57,8 @@ func cleanupDir() {
 
 // Get random replica index
 // Consistent for same node
-func getReplicaIdx(main_idx int, length int, cur_node_hash int32) int {
-	return (main_idx + (int(cur_node_hash) % REPL_FACTOR)) % length
+func getReplicaIdx(cur_node_hash uint32) uint32 {
+	return cur_node_hash % REPL_FACTOR
 }
 
 // Hash a filename
@@ -72,9 +81,6 @@ func blockFilepath(filename string, block_node uint32, blockID uint32) string {
 
 // check if we have at least REPL_FACTOR members
 func enoughMembers() bool {
-	mu.Lock()
-	defer mu.Unlock()
-
 	return members.Len() >= REPL_FACTOR
 }
 
@@ -83,7 +89,7 @@ func blockExists(filename string, block_node uint32, blockID uint32) bool {
 	if !dirExists(HYDFS_DIR + "/" + filename) {
 		return false
 	}
-	return fileExists(blockName(filename, block_node, blockID))
+	return fileExists(fmt.Sprintf("%s/%s/%s", HYDFS_DIR, filename, blockName(filename, block_node, blockID)))
 }
 
 // check if a directory exists
@@ -150,6 +156,7 @@ func createBlock(filename string, block_node uint32, blockID uint32, data []byte
 	if err != nil {
 		hydfs_log.Fatal("[ERROR] Write file error:", err)
 	}
+	hydfs_log.Println("[INFO] Created block file", block_filepath)
 }
 
 // return next REPL_FACTOR - 1 nodes in the hashring
@@ -163,8 +170,36 @@ func getReplicas() []uint32 {
 		res[i] = cur_elem.Key().(uint32)
 		cur_elem = cur_elem.Next()
 	}
-	hydfs_log.Printf("[INFO] Replicating create request to replicas: %v", res)
 	return res
+}
+
+// return the replicas minus current node for a given filehash
+func getPrimaryReplicas(filehash uint32) []uint32 {
+	res := make([]uint32, REPL_FACTOR-1)
+	cur_elem := members.Find(filehash)
+	for i := range REPL_FACTOR {
+		if cur_elem == nil {
+			cur_elem = members.Front()
+		}
+		cur_elem_hash := cur_elem.Key().(uint32)
+		if cur_elem_hash != this_member.Hash {
+			res[i] = cur_elem.Key().(uint32)
+		}
+		cur_elem = cur_elem.Next()
+	}
+	return res
+}
+
+// return main target node for a file
+func getMainFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	main_replica := members.Find(file_hash)
+	if main_replica == nil {
+		main_replica = members.Front()
+	}
+	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)
 }
 
 // return target node for a file
@@ -176,14 +211,6 @@ func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	if main_replica == nil {
 		main_replica = members.Front()
 	}
-	offset := node_hash % REPL_FACTOR
-	for range offset {
-		main_replica = main_replica.Next()
-		if main_replica == nil {
-			main_replica = members.Front()
-		}
-	}
-
 	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)
 }
 
@@ -206,10 +233,11 @@ func getPrimaryReplicaFiles() []uint32 {
 				file_hashes = append(file_hashes, cur_file_hash)
 			}
 		} else {
-			if cur_file_hash < start && cur_file_hash >= end {
+			if cur_file_hash > start && cur_file_hash <= end {
 				file_hashes = append(file_hashes, cur_file_hash)
 			}
 		}
+		cur_file = cur_file.Next()
 	}
 
 	return file_hashes
@@ -287,4 +315,24 @@ func printMemberDict() {
 	}
 	res += "-----------------------------\n"
 	fmt.Print(res)
+}
+
+// fill in data to missing files
+func fillData(response_missing *repl.RequestMissing) *repl.RequestData {
+	request_data := &repl.RequestData{DataFiles: response_missing.MissingFiles}
+	for _, rpc_file := range request_data.DataFiles {
+		filename := rpc_file.Filename
+		for _, rpc_block := range rpc_file.Blocks {
+			rpc_block.Data = readFile(blockFilepath(filename, rpc_block.BlockNode, rpc_block.BlockID))
+		}
+	}
+	return request_data
+}
+
+func getNumBlocks(response_missing *repl.RequestMissing) int {
+	res := 0
+	for _, file := range response_missing.MissingFiles {
+		res += len(file.Blocks)
+	}
+	return res
 }
