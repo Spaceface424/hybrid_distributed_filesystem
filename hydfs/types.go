@@ -41,5 +41,5 @@ type File struct {
 
 type CachedFile struct {
 	timestamp uint32 // strictly increasing id for cache removal
-	file      *repl.File
+	file      []byte
 }

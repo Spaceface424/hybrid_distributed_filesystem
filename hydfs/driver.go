@@ -63,12 +63,40 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
 	file_hash := hashFilename(hydfs_filename)
+	//cache check
+	if cache[file_hash] != nil {
+		cached_file := cache[file_hash]
+		local_file, err := os.Create(local_filename)
+		if err != nil {
+			fmt.Println("[ERROR] os create error:", err)
+		}
+		defer local_file.Close()
+		local_file.Write(cached_file.file)
+		hydfs_log.Printf("[INFO] GET Wrote %s into %s, pulled from cache", hydfs_filename, local_filename)
+		return true, nil
+	}
+
 	_, target := getReplicaFileTarget(file_hash)
 	get_rpc := &repl.RequestGetData{Filename: hydfs_filename}
 	hydfs_filedata := sendGetRPC(target, get_rpc)
 	if hydfs_filedata == nil {
 		return false, fmt.Errorf("Error: GetRPC Call had an error")
 	}
+	//add to cache
+	if len(cache) >= cache_cap {
+		var min_key uint32 = 0
+		var min_timestamp uint32 = 9999999
+		for key, value := range cache {
+			if min_timestamp > value.timestamp {
+				min_key = key
+			}
+		}
+		delete(cache, min_key)
+	}
+	new_cache := &CachedFile{timestamp: cache_ts, file: hydfs_filedata}
+	cache_ts += 1
+	cache[file_hash] = new_cache
+
 	local_file, err := os.Create(local_filename)
 	if err != nil {
 		fmt.Println("[ERROR] os create error:", err)
@@ -97,6 +125,10 @@ func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	}
 
 	file_hash := hashFilename(hydfs_filename)
+	//check cache for remove
+	if cache[file_hash] != nil {
+		delete(cache, file_hash)
+	}
 	_, target := getReplicaFileTarget(file_hash)
 	data := &repl.FileBlock{BlockNode: file_hash, BlockID: 9999, Data: contents} // BlockID has temp val, will be set in rpc call
 	append_rpc := &repl.AppendData{Filename: hydfs_filename, Block: data}
