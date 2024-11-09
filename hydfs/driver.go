@@ -28,6 +28,7 @@ func StartHydfs(introducer string, verbose bool) {
 	node_hash = this_member.Hash
 	files = skiplist.New(skiplist.Uint32)
 	members = skiplist.New(skiplist.Uint32)
+	cache = make(map[uint32]*CachedFile)
 	member_change_chan <- struct{}{}
 	hash_func = fnv.New32()
 	hydfs_log = log.New(os.Stdout, fmt.Sprintf("hydfs.main Node %d, ", cur_member.ID), log.Ltime|log.Lshortfile)

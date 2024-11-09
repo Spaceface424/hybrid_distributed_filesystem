@@ -1,6 +1,7 @@
 package hydfs
 
 import (
+	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/shared"
 	"fmt"
 	"hash"
@@ -16,11 +17,14 @@ const (
 	REPL_FACTOR = 3
 	GRPC_PORT   = "7000"
 	M           = 15
+	cache_cap   = 10
 )
 
 var (
-	files       *skiplist.SkipList // ordered map hash to file
-	members     *skiplist.SkipList // ordered map of current nodes sorted by node hashes
+	files       *skiplist.SkipList     // ordered map hash to file
+	members     *skiplist.SkipList     // ordered map of current nodes sorted by node hashes
+	cache       map[uint32]*CachedFile // map hash to *repl.file
+	cache_ts    uint32
 	mu          sync.Mutex
 	node_hash   uint32 // current node hash
 	this_member *shared.MemberInfo
@@ -33,4 +37,9 @@ var ErrNotEnoughMembers error = fmt.Errorf("Not enough members to satisfy replic
 type File struct {
 	filename string // user defined filename
 	nextID   uint32 // monotonically increasing local fileblock ID
+}
+
+type CachedFile struct {
+	timestamp uint32 // strictly increasing id for cache removal
+	file      *repl.File
 }
