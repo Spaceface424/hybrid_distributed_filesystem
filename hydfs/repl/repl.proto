@@ -9,6 +9,7 @@ service Replication {
   rpc RequestReplicaCreate (CreateData) returns (RequestAck) {}
   rpc RequestGet (RequestGetData) returns (ResponseGetData) {}
   rpc RequestAppend (AppendData) returns (RequestAck) {}
+  rpc RequestReplicaAppend (AppendData) returns (RequestAck) {}
 }
 message AppendData {
   string Filename = 1;
