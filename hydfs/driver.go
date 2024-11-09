@@ -78,7 +78,6 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 }
 
 func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
-	// TODO:
 	if !enoughMembers() {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
