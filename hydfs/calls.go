@@ -97,7 +97,7 @@ func sendReplicationRPC(target *shared.MemberInfo, primary_replica_filehashes []
 	return response_ack.OK
 }
 
-func sendGetRPC(target *shared.MemberInfo, file_rpc *repl.GetData) *repl.File {
+func sendGetRPC(target *shared.MemberInfo, file_rpc *repl.RequestGetData) []byte {
 	target_addr := strings.Split(target.Address, ":")[0] + ":" + GRPC_PORT
 	hydfs_log.Printf("[INFO] RPC Sending get request to %s for file: %s", target_addr, file_rpc.Filename)
 	conn, err := grpc.NewClient(target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -111,12 +111,12 @@ func sendGetRPC(target *shared.MemberInfo, file_rpc *repl.GetData) *repl.File {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
 	defer cancel()
 
-	response, err := client.RequestGet(ctx, file_rpc)
+	response_data, err := client.RequestGet(ctx, file_rpc)
 	if err != nil {
 		hydfs_log.Printf("[WARNING] gRPC call error: %v", err)
 		return nil
 	}
-	return response
+	return response_data.FileData
 }
 
 func sendAppendRPC(target *shared.MemberInfo, file_rpc *repl.AppendData) bool {

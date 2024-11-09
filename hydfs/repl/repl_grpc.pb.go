@@ -35,7 +35,7 @@ type ReplicationClient interface {
 	RequestSend(ctx context.Context, in *RequestData, opts ...grpc.CallOption) (*RequestAck, error)
 	RequestCreate(ctx context.Context, in *CreateData, opts ...grpc.CallOption) (*RequestAck, error)
 	RequestReplicaCreate(ctx context.Context, in *CreateData, opts ...grpc.CallOption) (*RequestAck, error)
-	RequestGet(ctx context.Context, in *GetData, opts ...grpc.CallOption) (*File, error)
+	RequestGet(ctx context.Context, in *RequestGetData, opts ...grpc.CallOption) (*ResponseGetData, error)
 	RequestAppend(ctx context.Context, in *AppendData, opts ...grpc.CallOption) (*RequestAck, error)
 }
 
@@ -87,9 +87,9 @@ func (c *replicationClient) RequestReplicaCreate(ctx context.Context, in *Create
 	return out, nil
 }
 
-func (c *replicationClient) RequestGet(ctx context.Context, in *GetData, opts ...grpc.CallOption) (*File, error) {
+func (c *replicationClient) RequestGet(ctx context.Context, in *RequestGetData, opts ...grpc.CallOption) (*ResponseGetData, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(File)
+	out := new(ResponseGetData)
 	err := c.cc.Invoke(ctx, Replication_RequestGet_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ type ReplicationServer interface {
 	RequestSend(context.Context, *RequestData) (*RequestAck, error)
 	RequestCreate(context.Context, *CreateData) (*RequestAck, error)
 	RequestReplicaCreate(context.Context, *CreateData) (*RequestAck, error)
-	RequestGet(context.Context, *GetData) (*File, error)
+	RequestGet(context.Context, *RequestGetData) (*ResponseGetData, error)
 	RequestAppend(context.Context, *AppendData) (*RequestAck, error)
 	mustEmbedUnimplementedReplicationServer()
 }
@@ -139,7 +139,7 @@ func (UnimplementedReplicationServer) RequestCreate(context.Context, *CreateData
 func (UnimplementedReplicationServer) RequestReplicaCreate(context.Context, *CreateData) (*RequestAck, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestReplicaCreate not implemented")
 }
-func (UnimplementedReplicationServer) RequestGet(context.Context, *GetData) (*File, error) {
+func (UnimplementedReplicationServer) RequestGet(context.Context, *RequestGetData) (*ResponseGetData, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestGet not implemented")
 }
 func (UnimplementedReplicationServer) RequestAppend(context.Context, *AppendData) (*RequestAck, error) {
@@ -239,7 +239,7 @@ func _Replication_RequestReplicaCreate_Handler(srv interface{}, ctx context.Cont
 }
 
 func _Replication_RequestGet_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetData)
+	in := new(RequestGetData)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -251,7 +251,7 @@ func _Replication_RequestGet_Handler(srv interface{}, ctx context.Context, dec f
 		FullMethod: Replication_RequestGet_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ReplicationServer).RequestGet(ctx, req.(*GetData))
+		return srv.(ReplicationServer).RequestGet(ctx, req.(*RequestGetData))
 	}
 	return interceptor(ctx, in, info, handler)
 }

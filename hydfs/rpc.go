@@ -1,10 +1,12 @@
 package hydfs
 
 import (
+	"bytes"
 	"context"
 	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/shared"
 	"net"
+	"sort"
 
 	"google.golang.org/grpc"
 )
@@ -132,30 +134,49 @@ func (s *HydfsRPCserver) RequestReplicaCreate(ctx context.Context, request *repl
 	return &repl.RequestAck{OK: true}, nil
 }
 
-func (s *HydfsRPCserver) RequestGet(ctx context.Context, request *repl.GetData) (*repl.File, error) {
-    mu.Lock()
-    defer mu.Unlock()
+func (s *HydfsRPCserver) RequestGet(ctx context.Context, request *repl.RequestGetData) (*repl.ResponseGetData, error) {
+	mu.Lock()
+	defer mu.Unlock()
 
-    hydfs_log.Printf("[INFO] RPC Serving get request for file: %", request.Filename)
-    file_name := request.Filename
-    file_blocks := getBlocks(file_name, true)
-    result := &repl.File{Filename: file_name, Blocks: file_blocks}
-    return result, nil
+	hydfs_log.Printf("[INFO] RPC Serving get request for file: %s", request.Filename)
+	file_name := request.Filename
+	// check if file exists
+	if files.Get(hashFilename(file_name)) == nil {
+		return nil, nil
+	}
+	file_blocks := getBlocks(file_name, true)
+
+	// sort blocks by blockNode then blockID
+	sort.Slice(file_blocks, func(i, j int) bool {
+		if file_blocks[i].BlockNode != file_blocks[j].BlockNode {
+			return file_blocks[i].BlockNode < file_blocks[j].BlockNode
+		}
+		return file_blocks[i].BlockID < file_blocks[j].BlockID
+	})
+
+	// allocate []byte and read in all blocks to it
+	var buffer bytes.Buffer
+	for _, block := range file_blocks {
+		block_data := readFile(blockFilepath(file_name, block.BlockNode, block.BlockID))
+		buffer.Grow(len(block_data))
+		buffer.Write(block_data)
+	}
+
+	return &repl.ResponseGetData{FileData: buffer.Bytes()}, nil
 }
 
-
 func (s *HydfsRPCserver) RequestAppend(ctx context.Context, request *repl.AppendData) (*repl.RequestAck, error) {
-    mu.Lock()
-    defer mu.Unlock()
+	mu.Lock()
+	defer mu.Unlock()
 
-    file_hash := hashFilename(request.Filename)
+	file_hash := hashFilename(request.Filename)
 	block := request.Block
-    //fails if file does not exist in files
-    if files.Get(file_hash) == nil {
-        hydfs_log.Printf("[WARNING] RPC Serving append request file %s does not exist", request.Filename)
-        return &repl.RequestAck{OK: false}, nil
-    }
-	local_file := files.Get(file_hash).Value.(File) 
+	// fails if file does not exist in files
+	if files.Get(file_hash) == nil {
+		hydfs_log.Printf("[WARNING] RPC Serving append request file %s does not exist", request.Filename)
+		return &repl.RequestAck{OK: false}, nil
+	}
+	local_file := files.Get(file_hash).Value.(File)
 	block.BlockID = local_file.nextID
 	local_file.nextID += 1
 	hydfs_log.Printf("[INFO] RPC Serving append request for file: %", request.Filename)
@@ -171,24 +192,25 @@ func (s *HydfsRPCserver) RequestAppend(ctx context.Context, request *repl.Append
 		go sendAppendReplicaRPC(replica.Value.(*shared.MemberInfo), request)
 	}
 
-    return &repl.RequestAck{OK: true}, nil
+	return &repl.RequestAck{OK: true}, nil
 }
 
 func (s *HydfsRPCserver) RequestReplicaAppend(ctx context.Context, request *repl.AppendData) (*repl.RequestAck, error) {
 	mu.Lock()
-    defer mu.Unlock()
+	defer mu.Unlock()
 
-    file_hash := hashFilename(request.Filename)
+	file_hash := hashFilename(request.Filename)
 	block := request.Block
-    //fails if file does not exist in files
-    if files.Get(file_hash) == nil {
-        hydfs_log.Printf("[WARNING] RPC Serving replica append request file %s does not exist", request.Filename)
-        return &repl.RequestAck{OK: false}, nil
-    }
-	local_file := files.Get(file_hash).Value.(File) 
+	// fails if file does not exist in files
+	if files.Get(file_hash) == nil {
+		hydfs_log.Printf("[WARNING] RPC Serving replica append request file %s does not exist", request.Filename)
+		return &repl.RequestAck{OK: false}, nil
+	}
+	local_file := files.Get(file_hash).Value.(File)
 	block.BlockID = local_file.nextID
 	local_file.nextID += 1
 	hydfs_log.Printf("[INFO] RPC Serving replica append request for file: %", request.Filename)
 	createBlock(request.Filename, block.BlockNode, block.BlockID, block.Data)
 	return &repl.RequestAck{OK: true}, nil
 }
+

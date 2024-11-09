@@ -203,7 +203,7 @@ func getMainFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 }
 
 // return target node for a file
-func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
+func getReplicaFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -211,6 +211,14 @@ func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	if main_replica == nil {
 		main_replica = members.Front()
 	}
+	offset := this_member.Hash % REPL_FACTOR
+	for range offset {
+		main_replica = main_replica.Next()
+		if main_replica == nil {
+			main_replica = members.Front()
+		}
+	}
+
 	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)
 }
 
