@@ -7,7 +7,6 @@ import (
 	"cs425/mp3/shared"
 	"fmt"
 	"hash/fnv"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -83,23 +82,13 @@ func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	if !enoughMembers() {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
-	file, err := os.Open(local_filename)
-	if err != nil {
-		hydfs_log.Println("[ERROR] Open file error:", err)
-		return false, nil
-	}
-	defer file.Close()
-	contents, err := io.ReadAll(file)
-	if err != nil {
-		hydfs_log.Println("[ERROR] Open file error:", err)
-		return false, nil
-	}
-
+	// read local_file into memory and send append rpc
+	contents := readFile(local_filename)
 	file_hash := hashFilename(hydfs_filename)
 	_, target := getReplicaFileTarget(file_hash)
-	data := &repl.FileBlock{BlockNode: file_hash, BlockID: 9999, Data: contents} // BlockID has temp val, will be set in rpc call
+	data := &repl.FileBlock{Data: contents}
 	append_rpc := &repl.AppendData{Filename: hydfs_filename, Block: data}
-	hydfs_log.Printf("[INFO] Sending append request for file %s to node %d", hydfs_filename, target.ID)
+	hydfs_log.Printf("[INFO] Sending append request for file %s to node %d, hash %d", hydfs_filename, target.ID, target.Hash)
 	return sendAppendRPC(target, append_rpc), nil
 }
 
