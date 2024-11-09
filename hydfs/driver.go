@@ -115,7 +115,6 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 			}
 		}
 		members.Set(node_hash, this_member)
-		hydfs_log.Println("[INFO] Reset members")
 		// check if became primary replica for new range
 		// make re-replication calls to secondary replicas
 		primary_replica_filehashes := getPrimaryReplicaFiles()
@@ -132,6 +131,8 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 
 		mu.Unlock()
 		swim.Members.Mu.Unlock()
+
+		swim.PrintMembershipList()
 	}
 }
 

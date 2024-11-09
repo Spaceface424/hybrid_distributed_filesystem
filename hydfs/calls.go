@@ -4,7 +4,6 @@ import (
 	"context"
 	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/shared"
-	"log"
 	"strings"
 	"time"
 
@@ -99,7 +98,7 @@ func sendReplicationRPC(target *shared.MemberInfo, primary_replica_filehashes []
 	response_ack, err := client.RequestSend(ctx, rpc_request_data)
 
 	elapsed := time.Since(start)
-	log.Printf("[INFO] Re-replication took %v ms", elapsed.Milliseconds())
+	hydfs_log.Printf("[INFO] Re-replication took %v ms", elapsed.Milliseconds())
 	return response_ack.OK
 }
 
