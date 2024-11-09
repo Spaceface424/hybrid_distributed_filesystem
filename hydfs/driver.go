@@ -93,8 +93,10 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 					min_key = key
 				}
 			}
+			hydfs_log.Printf("[INFO] GET caused exceeded capacity in cache, deleted oldest entry")
 			delete(cache, min_key)
 		}
+		hydfs_log.Printf("[INFO] GET Wrote %s into the cache", local_filename)
 		new_cache := &CachedFile{timestamp: cache_ts, file: hydfs_filedata}
 		cache_ts += 1
 		cache[file_hash] = new_cache
@@ -129,6 +131,7 @@ func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	file_hash := hashFilename(hydfs_filename)
 	//check cache for remove
 	if enable_cache && cache[file_hash] != nil {
+		hydfs_log.Printf("[INFO] APPEND deleted entry for %s from the cache", local_filename)
 		delete(cache, file_hash)
 	}
 	_, target := getReplicaFileTarget(file_hash)
