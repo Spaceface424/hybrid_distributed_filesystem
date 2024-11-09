@@ -97,9 +97,18 @@ func sendReplicationRPC(target *shared.MemberInfo, primary_replica_filehashes []
 	return response_ack.OK
 }
 
-func sendGetRPC(target *shared.MemberInfo, file_rpc *repl.GetData) *repl.File {
+func sendGetRPC(target *shared.MemberInfo, file_rpc *repl.RequestGetData) []byte {
+	// get file locally if stored at node
+	if files.Get(hashFilename(file_rpc.Filename)) != nil {
+		hydfs_log.Printf("[INFO] GET file %s found locally", file_rpc.Filename)
+		file_blocks := getBlocks(file_rpc.Filename, true)
+		sortBlocks(file_blocks)
+		return readAllBlocks(file_rpc.Filename, file_blocks)
+	}
+
+	// make rpc get request to replica node
 	target_addr := strings.Split(target.Address, ":")[0] + ":" + GRPC_PORT
-	hydfs_log.Printf("[INFO] RPC Sending get request to %s for file: %s", target_addr, file_rpc.Filename)
+	hydfs_log.Printf("[INFO] Sending get request to node %d, hash %d for file: %s", target.ID, target.Hash, file_rpc.Filename)
 	conn, err := grpc.NewClient(target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		hydfs_log.Printf("[WARNING] gRPC did not connect: %v", err)
@@ -111,12 +120,12 @@ func sendGetRPC(target *shared.MemberInfo, file_rpc *repl.GetData) *repl.File {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
 	defer cancel()
 
-	response, err := client.RequestGet(ctx, file_rpc)
+	response_data, err := client.RequestGet(ctx, file_rpc)
 	if err != nil {
 		hydfs_log.Printf("[WARNING] gRPC call error: %v", err)
 		return nil
 	}
-	return response
+	return response_data.FileData
 }
 
 func sendAppendRPC(target *shared.MemberInfo, file_rpc *repl.AppendData) bool {

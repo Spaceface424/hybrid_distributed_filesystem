@@ -7,7 +7,7 @@ service Replication {
   rpc RequestSend (RequestData) returns (RequestAck) {}
   rpc RequestCreate (CreateData) returns (RequestAck) {}
   rpc RequestReplicaCreate (CreateData) returns (RequestAck) {}
-  rpc RequestGet (GetData) returns (File) {}
+  rpc RequestGet (RequestGetData) returns (ResponseGetData) {}
   rpc RequestAppend (AppendData) returns (RequestAck) {}
 }
 message AppendData {
@@ -15,8 +15,12 @@ message AppendData {
   FileBlock Block = 2;
 }
 
-message GetData {
+message RequestGetData {
   string Filename = 1;
+}
+
+message ResponseGetData {
+  bytes FileData = 1;
 }
 
 message CreateData {

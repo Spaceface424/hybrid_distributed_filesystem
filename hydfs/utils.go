@@ -1,6 +1,7 @@
 package hydfs
 
 import (
+	"bytes"
 	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/hydfs/swim"
 	"cs425/mp3/shared"
@@ -8,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -203,7 +205,7 @@ func getMainFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 }
 
 // return target node for a file
-func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
+func getReplicaFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -211,6 +213,14 @@ func getFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	if main_replica == nil {
 		main_replica = members.Front()
 	}
+	offset := this_member.Hash % REPL_FACTOR
+	for range offset {
+		main_replica = main_replica.Next()
+		if main_replica == nil {
+			main_replica = members.Front()
+		}
+	}
+
 	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)
 }
 
@@ -335,4 +345,25 @@ func getNumBlocks(response_missing *repl.RequestMissing) int {
 		res += len(file.Blocks)
 	}
 	return res
+}
+
+// sort blocks by blockNode then blockID
+func sortBlocks(file_blocks []*repl.FileBlock) {
+	sort.Slice(file_blocks, func(i, j int) bool {
+		if file_blocks[i].BlockNode != file_blocks[j].BlockNode {
+			return file_blocks[i].BlockNode < file_blocks[j].BlockNode
+		}
+		return file_blocks[i].BlockID < file_blocks[j].BlockID
+	})
+}
+
+// allocate []byte and read in all blocks to it
+func readAllBlocks(filename string, file_blocks []*repl.FileBlock) []byte {
+	var buffer bytes.Buffer
+	for _, block := range file_blocks {
+		block_data := readFile(blockFilepath(filename, block.BlockNode, block.BlockID))
+		buffer.Grow(len(block_data))
+		buffer.Write(block_data)
+	}
+	return buffer.Bytes()
 }
