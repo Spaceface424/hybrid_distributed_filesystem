@@ -29,6 +29,7 @@ func StartHydfs(introducer string, verbose bool) {
 	files = skiplist.New(skiplist.Uint32)
 	members = skiplist.New(skiplist.Uint32)
 	cache = make(map[uint32]*CachedFile)
+	enable_cache = true
 	member_change_chan <- struct{}{}
 	hash_func = fnv.New32()
 	hydfs_log = log.New(os.Stdout, fmt.Sprintf("hydfs.main Node %d, ", cur_member.ID), log.Ltime|log.Lshortfile)
@@ -64,7 +65,7 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 	}
 	file_hash := hashFilename(hydfs_filename)
 	//cache check
-	if cache[file_hash] != nil {
+	if enable_cache && cache[file_hash] != nil {
 		cached_file := cache[file_hash]
 		local_file, err := os.Create(local_filename)
 		if err != nil {
@@ -83,20 +84,21 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 		return false, fmt.Errorf("Error: GetRPC Call had an error")
 	}
 	//add to cache
-	if len(cache) >= cache_cap {
-		var min_key uint32 = 0
-		var min_timestamp uint32 = 9999999
-		for key, value := range cache {
-			if min_timestamp > value.timestamp {
-				min_key = key
+	if enable_cache {
+		if len(cache) >= cache_cap {
+			var min_key uint32 = 0
+			var min_timestamp uint32 = 9999999
+			for key, value := range cache {
+				if min_timestamp > value.timestamp {
+					min_key = key
+				}
 			}
+			delete(cache, min_key)
 		}
-		delete(cache, min_key)
+		new_cache := &CachedFile{timestamp: cache_ts, file: hydfs_filedata}
+		cache_ts += 1
+		cache[file_hash] = new_cache
 	}
-	new_cache := &CachedFile{timestamp: cache_ts, file: hydfs_filedata}
-	cache_ts += 1
-	cache[file_hash] = new_cache
-
 	local_file, err := os.Create(local_filename)
 	if err != nil {
 		fmt.Println("[ERROR] os create error:", err)
@@ -126,7 +128,7 @@ func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 
 	file_hash := hashFilename(hydfs_filename)
 	//check cache for remove
-	if cache[file_hash] != nil {
+	if enable_cache && cache[file_hash] != nil {
 		delete(cache, file_hash)
 	}
 	_, target := getReplicaFileTarget(file_hash)

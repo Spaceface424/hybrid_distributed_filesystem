@@ -1,7 +1,6 @@
 package hydfs
 
 import (
-	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/shared"
 	"fmt"
 	"hash"
@@ -21,15 +20,16 @@ const (
 )
 
 var (
-	files       *skiplist.SkipList     // ordered map hash to file
-	members     *skiplist.SkipList     // ordered map of current nodes sorted by node hashes
-	cache       map[uint32]*CachedFile // map hash to *repl.file
-	cache_ts    uint32
-	mu          sync.Mutex
-	node_hash   uint32 // current node hash
-	this_member *shared.MemberInfo
-	hash_func   hash.Hash32
-	hydfs_log   *log.Logger
+	files        *skiplist.SkipList     // ordered map hash to file
+	members      *skiplist.SkipList     // ordered map of current nodes sorted by node hashes
+	cache        map[uint32]*CachedFile // map hash to *repl.file
+	cache_ts     uint32
+	enable_cache bool
+	mu           sync.Mutex
+	node_hash    uint32 // current node hash
+	this_member  *shared.MemberInfo
+	hash_func    hash.Hash32
+	hydfs_log    *log.Logger
 )
 
 var ErrNotEnoughMembers error = fmt.Errorf("Not enough members to satisfy replication factor of %d", REPL_FACTOR)
