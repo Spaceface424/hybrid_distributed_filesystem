@@ -3,7 +3,6 @@ package hydfs
 import (
 	"bytes"
 	"cs425/mp3/hydfs/repl"
-	"cs425/mp3/hydfs/swim"
 	"cs425/mp3/shared"
 	"fmt"
 	"io"
@@ -68,7 +67,7 @@ func hashFilename(filename string) uint32 {
 	io.WriteString(hash_func, filename)
 	hash_val := hash_func.Sum32()
 	hash_func.Reset()
-	return hash_val % (2 << swim.M)
+	return hash_val % (2 << M)
 }
 
 // Block info to filename

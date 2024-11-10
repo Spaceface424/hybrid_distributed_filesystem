@@ -306,6 +306,8 @@ func commandLoop() {
 				continue
 			}
 			multiappend(commandParts[1], vms, local_files)
+		case "exp3":
+			loadDataset(10, 30)
 		default:
 			fmt.Println("Unknown command...")
 		}
