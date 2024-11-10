@@ -33,3 +33,14 @@ func ls(hydfs_filename string) {
 	res += "----------------------------------------------\n"
 	fmt.Print(res)
 }
+
+// call append on all vm[i] for hydfs_filename with local_filenames[i]
+func multiappend(hydfs_filename string, vms []string, local_filenames []string) {
+	multiappend_members := make([]*shared.MemberInfo, len(vms))
+	for i, vm_addr := range vms {
+		multiappend_members[i] = members.Get(hashFilename(vm_addr)).Value.(*shared.MemberInfo)
+	}
+	for i, member := range multiappend_members {
+		go sendMultiAppendReqeustRPC(member, hydfs_filename, local_filenames[i])
+	}
+}

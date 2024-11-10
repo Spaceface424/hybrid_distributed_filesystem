@@ -208,3 +208,9 @@ func (s *HydfsRPCserver) RequestList(ctx context.Context, request *repl.File) (*
 	hydfs_log.Printf("[INFO] RPC Serving ls request for file %s responding %v", request.Filename, storing_file)
 	return &repl.RequestAck{OK: storing_file}, nil
 }
+
+func (s *HydfsRPCserver) RequestMultiAppend(ctx context.Context, request *repl.MultiAppendData) (*repl.RequestAck, error) {
+	hydfs_log.Printf("[INFO] RPC MultiAppend received request for hydfs file %s to local file %s", request.HydfsFilename, request.LocalFilename)
+	ok, _ := hydfsAppend(request.LocalFilename, request.HydfsFilename)
+	return &repl.RequestAck{OK: ok}, nil
+}

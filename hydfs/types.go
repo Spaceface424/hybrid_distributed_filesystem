@@ -49,8 +49,3 @@ type File struct {
 	filename string // user defined filename
 	nextID   uint32 // monotonically increasing local fileblock ID
 }
-
-type CachedFile struct {
-	timestamp uint32 // strictly increasing id for cache removal
-	file      []byte
-}

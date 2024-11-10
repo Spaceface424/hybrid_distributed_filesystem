@@ -4,6 +4,8 @@ import (
 	"context"
 	"cs425/mp3/shared"
 	"fmt"
+	"hash/fnv"
+	"io"
 	"log"
 	"math/rand/v2"
 	"net"
@@ -317,14 +319,19 @@ func pingTimeoutSuspicion(target_id int32) {
 	membershipList()
 }
 
-func getRandomID() uint32 {
-	return rand.Uint32() % (2 << M)
+func getRandomID(hostname string) uint32 {
+	hash_func := fnv.New32()
+	io.WriteString(hash_func, hostname)
+	hash_val := hash_func.Sum32()
+	hash_func.Reset()
+	log.Printf("[INFO] hashed %s to %d", hostname, hash_val%(2<<M))
+	return hash_val % (2 << M)
 }
 
 func requestIntroducer(cur_member *shared.MemberInfo, introducer string) {
 	if introducer == "" {
 		cur_member.ID = next_id
-		cur_member.Hash = getRandomID()
+		cur_member.Hash = getRandomID(cur_member.Address)
 		next_id++
 		return
 	}

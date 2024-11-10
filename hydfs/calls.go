@@ -4,6 +4,7 @@ import (
 	"context"
 	"cs425/mp3/hydfs/repl"
 	"cs425/mp3/shared"
+	"fmt"
 	"strings"
 	"time"
 
@@ -203,5 +204,32 @@ func sendLsRPC(target *shared.MemberInfo, hydfs_filename string, ch chan *shared
 		ch <- target
 	} else {
 		ch <- nil
+	}
+}
+
+func sendMultiAppendReqeustRPC(target *shared.MemberInfo, hydfs_filename string, local_filename string) {
+	target_addr := strings.Split(target.Address, ":")[0] + ":" + GRPC_PORT
+	hydfs_log.Printf("[INFO] RPC Sending multi-append request to node %d, hash %d for hydfs_file: %s to local_file: %s", target.ID, target.Hash, hydfs_filename, local_filename)
+	conn, err := grpc.NewClient(target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		hydfs_log.Printf("[WARNING] gRPC did not connect: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	client := repl.NewReplicationClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*7)
+	defer cancel()
+
+	request_data := &repl.MultiAppendData{HydfsFilename: hydfs_filename, LocalFilename: local_filename}
+	response, err := client.RequestMultiAppend(ctx, request_data)
+	if err != nil {
+		hydfs_log.Printf("[WARNING] gRPC call error: %v", err)
+		return
+	}
+	if response.OK {
+		fmt.Printf("SUCCESS MultiAppend to node %d hash %d for hydfs_file: %s to local_file: %s\n", target.ID, target.Hash, hydfs_filename, local_filename)
+	} else {
+		fmt.Printf("FAILED MultiAppend to node %d hash %d for hydfs_file: %s to local_file: %s\n", target.ID, target.Hash, hydfs_filename, local_filename)
 	}
 }

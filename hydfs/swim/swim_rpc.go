@@ -51,7 +51,7 @@ func (s *SwimRPCserver) RequestMembershipInfo(ctx context.Context, member *share
 		i++
 	}
 	member.ID = next_id
-	member.Hash = getRandomID()
+	member.Hash = getRandomID(member.Address)
 	member_container := &shared.MemberContainer{
 		ID:         member.ID,
 		Hash:       member.Hash,
