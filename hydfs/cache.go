@@ -35,6 +35,9 @@ func (cache *LRU_cache) addFile(filename string, data []byte) {
 		return
 	}
 	filehash := hashFilename(filename)
+	for cache.size+len(data) > cache.limit {
+		cache.evict()
+	}
 	if cache.front == nil && cache.back == nil {
 		new_head := &node{key: filehash, next: nil, prev: nil}
 		cache.front = new_head
@@ -52,9 +55,6 @@ func (cache *LRU_cache) addFile(filename string, data []byte) {
 		cache.size += len(data)
 		hydfs_log.Printf("[INFO] Adding file %s to cache, cache size = %.2f KB", filename, float64(cache.size)/1024)
 		return
-	}
-	for cache.size+len(data) > cache.limit {
-		cache.evict()
 	}
 	new_head := &node{key: filehash, next: cache.front, prev: nil}
 	cache.front.prev = new_head

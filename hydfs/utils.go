@@ -244,7 +244,7 @@ func getVMFileTarget(file_hash uint32, vm_address string) (uint32, *shared.Membe
 			main_replica = members.Front()
 		}
 	}
-	if main_replica.Value.(*shared.MemberInfo).Address != vm_address {
+	if main_replica.Value.(*shared.MemberInfo).Address != vm_address+":9000" {
 		return 0, nil
 	}
 	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)

@@ -111,22 +111,6 @@ func hydfsVMGet(hydfs_filename string, local_filename string, vm_address string)
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
 	file_hash := hashFilename(hydfs_filename)
-	// cache check
-	if enable_cache {
-		data := cache.getFile(hydfs_filename)
-		if data != nil {
-			hydfs_log.Printf("[INFO] GET cache hit on file %s!", hydfs_filename)
-			local_file, err := os.Create(local_filename)
-			if err != nil {
-				fmt.Println("[ERROR] os create error:", err)
-			}
-			defer local_file.Close()
-			local_file.Write(data)
-			hydfs_log.Printf("[INFO] GET Wrote %s into %s from cache", hydfs_filename, local_filename)
-			return true, nil
-		}
-		hydfs_log.Printf("[INFO] GET cache miss on file %s!", hydfs_filename)
-	}
 
 	// make get rpc call to vm_address
 	_, target := getVMFileTarget(file_hash, vm_address)
@@ -137,11 +121,6 @@ func hydfsVMGet(hydfs_filename string, local_filename string, vm_address string)
 	hydfs_filedata := sendGetRPC(target, get_rpc)
 	if hydfs_filedata == nil {
 		return false, fmt.Errorf("Error: GetRPC Call had an error")
-	}
-
-	// add to cache
-	if enable_cache {
-		cache.addFile(hydfs_filename, hydfs_filedata)
 	}
 
 	// write get data to local_filename
@@ -243,7 +222,7 @@ func commandLoop() {
 				continue
 			}
 			if res {
-				fmt.Printf("Create %s in HyDFS from %s\n", hydfs_filename, local_filename)
+				fmt.Printf("SUCCESS Create %s in HyDFS from %s\n", hydfs_filename, local_filename)
 			} else {
 				fmt.Println("Create failed")
 			}
@@ -259,7 +238,7 @@ func commandLoop() {
 				fmt.Println("Get error:", err)
 				continue
 			}
-			fmt.Printf("Get %s from HyDFS into %s\n", hydfs_filename, local_filename)
+			fmt.Printf("SUCCESS Get %s from HyDFS into %s\n", hydfs_filename, local_filename)
 		case "append":
 			if len(commandParts) != 3 {
 				fmt.Println("usage: append localfilename HyDFSfilename")
@@ -272,7 +251,7 @@ func commandLoop() {
 				fmt.Println("Append error:", err)
 				continue
 			}
-			fmt.Printf("Append %s into %s in HyDFS\n", local_filename, hydfs_filename)
+			fmt.Printf("SUCCESS Append %s into %s in HyDFS\n", local_filename, hydfs_filename)
 		case "merge":
 			if len(commandParts) != 2 {
 				fmt.Println("usage: merge HyDFSfilename")
@@ -301,6 +280,31 @@ func commandLoop() {
 				continue
 			}
 			ls(commandParts[1])
+		case "multiappend":
+			if len(commandParts) < 5 {
+				fmt.Println("usage: multiappend hydfs_filename vm_1 vm_2 ... files local_filename_1 local_filename_2 ...")
+				continue
+			}
+			vms := make([]string, 0)
+			local_files := make([]string, 0)
+			file_idx := 0
+			for i, arg := range commandParts[2:] {
+				if arg == "files" {
+					file_idx = i + 3
+					break
+				}
+				vms = append(vms, VM[arg]+":9000")
+			}
+			for _, arg := range commandParts[file_idx:] {
+				local_files = append(local_files, arg)
+			}
+			if len(vms) != len(local_files) {
+				fmt.Println("usage: multiappend hydfs_filename vm_1 vm_2 ... files local_filename_1 local_filename_2 ...")
+				fmt.Println(vms)
+				fmt.Println(local_files)
+				continue
+			}
+			multiappend(commandParts[1], vms, local_files)
 		default:
 			fmt.Println("Unknown command...")
 		}

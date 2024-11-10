@@ -11,7 +11,14 @@ service Replication {
   rpc RequestAppend (AppendData) returns (RequestAck) {}
   rpc RequestReplicaAppend (AppendData) returns (RequestAck) {}
   rpc RequestList (File) returns (RequestAck) {}
+  rpc RequestMultiAppend(MultiAppendData) returns (RequestAck) {}
 }
+
+message MultiAppendData {
+  string HydfsFilename = 1;
+  string LocalFilename = 2;
+}
+
 message AppendData {
   string Filename = 1;
   FileBlock Block = 2;

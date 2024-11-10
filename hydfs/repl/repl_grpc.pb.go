@@ -27,6 +27,7 @@ const (
 	Replication_RequestAppend_FullMethodName        = "/Replication/RequestAppend"
 	Replication_RequestReplicaAppend_FullMethodName = "/Replication/RequestReplicaAppend"
 	Replication_RequestList_FullMethodName          = "/Replication/RequestList"
+	Replication_RequestMultiAppend_FullMethodName   = "/Replication/RequestMultiAppend"
 )
 
 // ReplicationClient is the client API for Replication service.
@@ -41,6 +42,7 @@ type ReplicationClient interface {
 	RequestAppend(ctx context.Context, in *AppendData, opts ...grpc.CallOption) (*RequestAck, error)
 	RequestReplicaAppend(ctx context.Context, in *AppendData, opts ...grpc.CallOption) (*RequestAck, error)
 	RequestList(ctx context.Context, in *File, opts ...grpc.CallOption) (*RequestAck, error)
+	RequestMultiAppend(ctx context.Context, in *MultiAppendData, opts ...grpc.CallOption) (*RequestAck, error)
 }
 
 type replicationClient struct {
@@ -131,6 +133,16 @@ func (c *replicationClient) RequestList(ctx context.Context, in *File, opts ...g
 	return out, nil
 }
 
+func (c *replicationClient) RequestMultiAppend(ctx context.Context, in *MultiAppendData, opts ...grpc.CallOption) (*RequestAck, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RequestAck)
+	err := c.cc.Invoke(ctx, Replication_RequestMultiAppend_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ReplicationServer is the server API for Replication service.
 // All implementations must embed UnimplementedReplicationServer
 // for forward compatibility.
@@ -143,6 +155,7 @@ type ReplicationServer interface {
 	RequestAppend(context.Context, *AppendData) (*RequestAck, error)
 	RequestReplicaAppend(context.Context, *AppendData) (*RequestAck, error)
 	RequestList(context.Context, *File) (*RequestAck, error)
+	RequestMultiAppend(context.Context, *MultiAppendData) (*RequestAck, error)
 	mustEmbedUnimplementedReplicationServer()
 }
 
@@ -176,6 +189,9 @@ func (UnimplementedReplicationServer) RequestReplicaAppend(context.Context, *App
 }
 func (UnimplementedReplicationServer) RequestList(context.Context, *File) (*RequestAck, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RequestList not implemented")
+}
+func (UnimplementedReplicationServer) RequestMultiAppend(context.Context, *MultiAppendData) (*RequestAck, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RequestMultiAppend not implemented")
 }
 func (UnimplementedReplicationServer) mustEmbedUnimplementedReplicationServer() {}
 func (UnimplementedReplicationServer) testEmbeddedByValue()                     {}
@@ -342,6 +358,24 @@ func _Replication_RequestList_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Replication_RequestMultiAppend_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MultiAppendData)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReplicationServer).RequestMultiAppend(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Replication_RequestMultiAppend_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReplicationServer).RequestMultiAppend(ctx, req.(*MultiAppendData))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Replication_ServiceDesc is the grpc.ServiceDesc for Replication service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -380,6 +414,10 @@ var Replication_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RequestList",
 			Handler:    _Replication_RequestList_Handler,
+		},
+		{
+			MethodName: "RequestMultiAppend",
+			Handler:    _Replication_RequestMultiAppend_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
