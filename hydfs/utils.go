@@ -396,4 +396,22 @@ func readAllBlocks(filename string, file_blocks []*repl.FileBlock) []byte {
 
 // remove files from files list if they are outside range
 func garbageCollectFiles() {
+	end := node_hash
+	start_node := members.Get(node_hash)
+	for range 3 {
+		start_node = start_node.Prev()
+		if start_node == nil {
+			start_node = members.Back()
+		}
+	}
+	start := start_node.Value.(uint32)
+	cur_file := files.Front()
+	for cur_file != nil {
+		cur_file_hash := cur_file.Key().(uint32)
+		if start < end && (cur_file_hash < start || cur_file_hash > end){
+			files.Remove(cur_file_hash)
+		} else if start > end && (end < cur_file_hash && cur_file_hash < start){
+			files.Remove(cur_file_hash)
+		}
+	}
 }
