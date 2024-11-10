@@ -228,8 +228,8 @@ func sendMultiAppendReqeustRPC(target *shared.MemberInfo, hydfs_filename string,
 		return
 	}
 	if response.OK {
-		fmt.Printf("SUCCESS MultiAppend to node %d hash %d for hydfs_file: %s to local_file: %s", target.ID, target.Hash, hydfs_filename, local_filename)
+		fmt.Printf("SUCCESS MultiAppend to node %d hash %d for hydfs_file: %s to local_file: %s\n", target.ID, target.Hash, hydfs_filename, local_filename)
 	} else {
-		fmt.Printf("FAILED MultiAppend to node %d hash %d for hydfs_file: %s to local_file: %s", target.ID, target.Hash, hydfs_filename, local_filename)
+		fmt.Printf("FAILED MultiAppend to node %d hash %d for hydfs_file: %s to local_file: %s\n", target.ID, target.Hash, hydfs_filename, local_filename)
 	}
 }
