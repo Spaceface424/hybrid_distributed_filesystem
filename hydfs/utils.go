@@ -398,20 +398,21 @@ func readAllBlocks(filename string, file_blocks []*repl.FileBlock) []byte {
 func garbageCollectFiles() {
 	end := node_hash
 	start_node := members.Get(node_hash)
-	for range 3 {
+	for range REPL_FACTOR {
 		start_node = start_node.Prev()
 		if start_node == nil {
 			start_node = members.Back()
 		}
 	}
-	start := start_node.Value.(uint32)
-	cur_file := files.Front()
-	for cur_file != nil {
+	start := start_node.Key().(uint32)
+	for cur_file := files.Front(); cur_file != nil; cur_file = cur_file.Next() {
 		cur_file_hash := cur_file.Key().(uint32)
-		if start < end && (cur_file_hash < start || cur_file_hash > end){
+		if start < end && (cur_file_hash <= start || cur_file_hash > end) {
 			files.Remove(cur_file_hash)
-		} else if start > end && (end < cur_file_hash && cur_file_hash < start){
+			os.RemoveAll(HYDFS_DIR + "/" + cur_file.Value.(*File).filename)
+		} else if start > end && (end < cur_file_hash && cur_file_hash <= start) {
 			files.Remove(cur_file_hash)
+			os.RemoveAll(HYDFS_DIR + "/" + cur_file.Value.(*File).filename)
 		}
 	}
 }

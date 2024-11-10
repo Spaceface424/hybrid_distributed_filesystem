@@ -190,6 +190,7 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 
 		// check if files left replication range
 		garbageCollectFiles()
+
 		mu.Unlock()
 		swim.Members.Mu.Unlock()
 
