@@ -398,7 +398,7 @@ func readAllBlocks(filename string, file_blocks []*repl.FileBlock) []byte {
 func garbageCollectFiles() {
 	end := node_hash
 	start_node := members.Get(node_hash)
-	for range 2 {
+	for range 3 {
 		start_node = start_node.Prev()
 		if start_node == nil {
 			start_node = members.Back()
