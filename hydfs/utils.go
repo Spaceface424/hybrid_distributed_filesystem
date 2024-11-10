@@ -22,7 +22,7 @@ func listFiles() {
 	cur_file := files.Front()
 	for range files.Len() {
 		filehash := cur_file.Key().(uint32)
-		file_struct := cur_file.Value.(File)
+		file_struct := cur_file.Value.(*File)
 		res += fmt.Sprintf("Hash: %d\tFilename: %s\n", filehash, file_struct.filename)
 		res += "Blocks:\n"
 		blocks := getBlocks(file_struct.filename, false)
@@ -179,13 +179,15 @@ func getReplicas() []uint32 {
 func getPrimaryReplicas(filehash uint32) []uint32 {
 	res := make([]uint32, REPL_FACTOR-1)
 	cur_elem := members.Find(filehash)
-	for i := range REPL_FACTOR {
+	i := 0
+	for range REPL_FACTOR {
 		if cur_elem == nil {
 			cur_elem = members.Front()
 		}
 		cur_elem_hash := cur_elem.Key().(uint32)
 		if cur_elem_hash != this_member.Hash {
 			res[i] = cur_elem.Key().(uint32)
+			i++
 		}
 		cur_elem = cur_elem.Next()
 	}
@@ -256,7 +258,7 @@ func getPrimaryReplicaFiles() []uint32 {
 		prev_node = members.Back()
 	}
 
-	start := (prev_node.Key().(uint32) + 1) % (2 << M)
+	start := prev_node.Key().(uint32)
 	end := this_member.Hash
 	cur_file := files.Front()
 	for cur_file != nil {
@@ -267,7 +269,7 @@ func getPrimaryReplicaFiles() []uint32 {
 				file_hashes = append(file_hashes, cur_file_hash)
 			}
 		} else {
-			if cur_file_hash > start && cur_file_hash <= end {
+			if start < cur_file_hash && cur_file_hash <= end {
 				file_hashes = append(file_hashes, cur_file_hash)
 			}
 		}
@@ -390,4 +392,8 @@ func readAllBlocks(filename string, file_blocks []*repl.FileBlock) []byte {
 		buffer.Write(block_data)
 	}
 	return buffer.Bytes()
+}
+
+// remove files from files list if they are outside range
+func garbageCollectFiles() {
 }

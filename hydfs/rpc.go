@@ -67,7 +67,7 @@ func (s *HydfsRPCserver) RequestSend(ctx context.Context, request *repl.RequestD
 	for _, file := range request.DataFiles {
 		filehash := hashFilename(file.Filename)
 		if files.Get(filehash) == nil {
-			new_file := File{filename: file.Filename, nextID: 0}
+			new_file := &File{filename: file.Filename, nextID: 0}
 			files.Set(filehash, new_file)
 		}
 		for _, block := range file.Blocks {
@@ -86,7 +86,7 @@ func (s *HydfsRPCserver) RequestCreate(ctx context.Context, request *repl.Create
 
 	hydfs_log.Printf("[INFO] RPC Serving create request for file: %s", request.NewFile.Filename)
 	file_rpc := request.NewFile
-	file_struct := File{filename: file_rpc.Filename, nextID: 1}
+	file_struct := &File{filename: file_rpc.Filename, nextID: 1}
 	file_hash := hashFilename(file_rpc.Filename)
 
 	// fail request if file already exists
@@ -97,7 +97,8 @@ func (s *HydfsRPCserver) RequestCreate(ctx context.Context, request *repl.Create
 
 	files.Set(file_hash, file_struct)
 	block := request.NewFile.Blocks[0]
-	createBlock(file_rpc.Filename, block.BlockNode, block.BlockID, block.Data)
+	block.BlockNode = this_member.Hash
+	createBlock(file_rpc.Filename, block.BlockNode, 0, block.Data)
 	replicas := getReplicas()
 	hydfs_log.Printf("[INFO] RPC Replicating create request to replicas: %v", replicas)
 	for _, replica_hash := range replicas {
@@ -122,7 +123,7 @@ func (s *HydfsRPCserver) RequestReplicaCreate(ctx context.Context, request *repl
 	hydfs_log.Printf("[INFO] RPC Serving replica create request for file: %s", request.NewFile.Filename)
 
 	file_rpc := request.NewFile
-	file_struct := File{filename: file_rpc.Filename, nextID: 1}
+	file_struct := &File{filename: file_rpc.Filename, nextID: 0}
 	file_hash := hashFilename(file_rpc.Filename)
 	files.Set(file_hash, file_struct)
 	block := request.NewFile.Blocks[0]
@@ -159,14 +160,16 @@ func (s *HydfsRPCserver) RequestAppend(ctx context.Context, request *repl.Append
 		hydfs_log.Printf("[WARNING] RPC Serving append request file %s does not exist", request.Filename)
 		return &repl.RequestAck{OK: false}, nil
 	}
-	local_file := files.Get(file_hash).Value.(File)
+	local_file := files.Get(file_hash).Value.(*File)
+	block.BlockNode = this_member.Hash
 	block.BlockID = local_file.nextID
 	local_file.nextID += 1
-	hydfs_log.Printf("[INFO] RPC Serving append request for file: %", request.Filename)
+	hydfs_log.Printf("[INFO] RPC Serving append request for file %s", request.Filename)
 	createBlock(request.Filename, block.BlockNode, block.BlockID, block.Data)
-
-	for _, replica_hash := range getReplicas() {
+	hydfs_log.Printf("[INFO] RPC append created new block for file %s", request.Filename)
+	for _, replica_hash := range getPrimaryReplicas(file_hash) {
 		// send append request to neighbor nodes
+		hydfs_log.Printf("[INFO] RPC sending append replica created new block for file %s", request.Filename)
 		replica := members.Get(replica_hash)
 		if replica == nil {
 			hydfs_log.Println("[WARNING] replica == nil")
@@ -189,11 +192,19 @@ func (s *HydfsRPCserver) RequestReplicaAppend(ctx context.Context, request *repl
 		hydfs_log.Printf("[WARNING] RPC Serving replica append request file %s does not exist", request.Filename)
 		return &repl.RequestAck{OK: false}, nil
 	}
-	local_file := files.Get(file_hash).Value.(File)
-	block.BlockID = local_file.nextID
-	local_file.nextID += 1
-	hydfs_log.Printf("[INFO] RPC Serving replica append request for file: %", request.Filename)
+	hydfs_log.Printf("[INFO] RPC Serving replica append request for file: %s", request.Filename)
 	createBlock(request.Filename, block.BlockNode, block.BlockID, block.Data)
+	hydfs_log.Printf("[INFO] RPC append created new block for file %s", request.Filename)
 	return &repl.RequestAck{OK: true}, nil
 }
 
+// responds whether or not the current node is storing this file
+func (s *HydfsRPCserver) RequestList(ctx context.Context, request *repl.File) (*repl.RequestAck, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	filehash := hashFilename(request.Filename)
+	storing_file := files.Get(filehash) != nil
+	hydfs_log.Printf("[INFO] RPC Serving ls request for file %s responding %v", request.Filename, storing_file)
+	return &repl.RequestAck{OK: storing_file}, nil
+}

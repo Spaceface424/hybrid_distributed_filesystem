@@ -7,7 +7,6 @@ import (
 	"cs425/mp3/shared"
 	"fmt"
 	"hash/fnv"
-	"io"
 	"log"
 	"os"
 	"strings"
@@ -52,10 +51,10 @@ func hydfsCreate(local_filename string, hydfs_filename string) (bool, error) {
 	contents := readFile(local_filename)
 	file_hash := hashFilename(hydfs_filename)
 	// get target node based on hashed filename
-	target_hash, target := getMainFileTarget(file_hash)
+	_, target := getMainFileTarget(file_hash)
 	hydfs_log.Printf("%s hash to %d", hydfs_filename, file_hash)
 	// construct rpc structures and make rpc call
-	block := []*repl.FileBlock{{BlockNode: target_hash, BlockID: 0, Data: contents}}
+	block := []*repl.FileBlock{{Data: contents}}
 	file_rpc := &repl.File{Filename: hydfs_filename, Blocks: block}
 	hydfs_log.Printf("[INFO] Sending create request to node %d, hash %d", target.ID, target.Hash)
 	return sendCreateRPC(target, file_rpc), nil
@@ -160,27 +159,17 @@ func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	if !enoughMembers() {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
-	file, err := os.Open(local_filename)
-	if err != nil {
-		hydfs_log.Println("[ERROR] Open file error:", err)
-		return false, nil
-	}
-	defer file.Close()
-	contents, err := io.ReadAll(file)
-	if err != nil {
-		hydfs_log.Println("[ERROR] Open file error:", err)
-		return false, nil
-	}
-
+	// read local_file into memory and send append rpc
+	contents := readFile(local_filename)
 	file_hash := hashFilename(hydfs_filename)
 	// check cache for remove
 	if enable_cache {
 		cache.invalidateFile(hydfs_filename)
 	}
 	_, target := getReplicaFileTarget(file_hash)
-	data := &repl.FileBlock{BlockNode: file_hash, BlockID: 9999, Data: contents} // BlockID has temp val, will be set in rpc call
+	data := &repl.FileBlock{Data: contents}
 	append_rpc := &repl.AppendData{Filename: hydfs_filename, Block: data}
-	hydfs_log.Printf("[INFO] Sending append request for file %s to node %d", hydfs_filename, target.ID)
+	hydfs_log.Printf("[INFO] Sending append request for file %s to node %d, hash %d", hydfs_filename, target.ID, target.Hash)
 	return sendAppendRPC(target, append_rpc), nil
 }
 
@@ -208,7 +197,6 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 			}
 		}
 		members.Set(node_hash, this_member)
-		hydfs_log.Println("[INFO] Reset members")
 		// check if became primary replica for new range
 		// make re-replication calls to secondary replicas
 		primary_replica_filehashes := getPrimaryReplicaFiles()
@@ -221,8 +209,12 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 			}
 		}
 
+		// check if files left replication range
+
 		mu.Unlock()
 		swim.Members.Mu.Unlock()
+
+		swim.PrintMembershipList()
 	}
 }
 
@@ -303,6 +295,12 @@ func commandLoop() {
 				continue
 			}
 			fmt.Printf("Get %s from VM Address %s into %s\n", hydfs_filename, vm_address, local_filename)
+		case "ls":
+			if len(commandParts) != 2 {
+				fmt.Println("usage: ls HyDFSfilename")
+				continue
+			}
+			ls(commandParts[1])
 		default:
 			fmt.Println("Unknown command...")
 		}
