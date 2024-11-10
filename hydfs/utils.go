@@ -226,6 +226,30 @@ func getReplicaFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)
 }
 
+func getVMFileTarget(file_hash uint32, vm_address string) (uint32, *shared.MemberInfo) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	main_replica := members.Find(file_hash)
+	if main_replica == nil {
+		main_replica = members.Front()
+	}
+	for range REPL_FACTOR - 1 {
+		curr_member := main_replica.Value.(*shared.MemberInfo)
+		if curr_member.Address == vm_address+":9000" {
+			break
+		}
+		main_replica = main_replica.Next()
+		if main_replica == nil {
+			main_replica = members.Front()
+		}
+	}
+	if main_replica.Value.(*shared.MemberInfo).Address != vm_address {
+		return 0, nil
+	}
+	return main_replica.Key().(uint32), main_replica.Value.(*shared.MemberInfo)
+}
+
 // get all file hashes that current node is the primary replica for
 func getPrimaryReplicaFiles() []uint32 {
 	file_hashes := make([]uint32, 0)

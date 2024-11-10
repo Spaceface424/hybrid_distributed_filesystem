@@ -22,5 +22,5 @@ func main() {
 
 	flag.Parse()
 
-	hydfs.StartHydfs(introducer, verbose)
+	hydfs.StartHydfs(introducer, verbose, 0)
 }

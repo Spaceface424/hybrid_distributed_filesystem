@@ -14,7 +14,7 @@ import (
 	"github.com/huandu/skiplist"
 )
 
-func StartHydfs(introducer string, verbose bool) {
+func StartHydfs(introducer string, verbose bool, cache_size int) {
 	hostname, _ := os.Hostname()
 	cur_member, member_change_chan := swim.StartServer(hostname, introducer, verbose)
 	this_member = &shared.MemberInfo{
@@ -30,6 +30,10 @@ func StartHydfs(introducer string, verbose bool) {
 	member_change_chan <- struct{}{}
 	hash_func = fnv.New32()
 	hydfs_log = log.New(os.Stdout, fmt.Sprintf("hydfs.main Node %d, ", cur_member.ID), log.Ltime|log.Lshortfile)
+	enable_cache = cache_size > 0
+	if enable_cache {
+		cache = createCache(cache_size)
+	}
 
 	cleanupDir()
 
@@ -61,12 +65,37 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
 	file_hash := hashFilename(hydfs_filename)
+	// cache check
+	if enable_cache {
+		data := cache.getFile(hydfs_filename)
+		if data != nil {
+			hydfs_log.Printf("[INFO] GET cache hit on file %s!", hydfs_filename)
+			local_file, err := os.Create(local_filename)
+			if err != nil {
+				fmt.Println("[ERROR] os create error:", err)
+			}
+			defer local_file.Close()
+			local_file.Write(data)
+			hydfs_log.Printf("[INFO] GET Wrote %s into %s from cache", hydfs_filename, local_filename)
+			return true, nil
+		}
+		hydfs_log.Printf("[INFO] GET cache miss on file %s!", hydfs_filename)
+	}
+
+	// make get rpc call to a replica
 	_, target := getReplicaFileTarget(file_hash)
 	get_rpc := &repl.RequestGetData{Filename: hydfs_filename}
 	hydfs_filedata := sendGetRPC(target, get_rpc)
 	if hydfs_filedata == nil {
 		return false, fmt.Errorf("Error: GetRPC Call had an error")
 	}
+
+	// add to cache
+	if enable_cache {
+		cache.addFile(hydfs_filename, hydfs_filedata)
+	}
+
+	// write get data to local_filename
 	local_file, err := os.Create(local_filename)
 	if err != nil {
 		fmt.Println("[ERROR] os create error:", err)
@@ -77,6 +106,55 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 	return true, nil
 }
 
+func hydfsVMGet(hydfs_filename string, local_filename string, vm_address string) (bool, error) {
+	if !enoughMembers() {
+		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
+	}
+	file_hash := hashFilename(hydfs_filename)
+	// cache check
+	if enable_cache {
+		data := cache.getFile(hydfs_filename)
+		if data != nil {
+			hydfs_log.Printf("[INFO] GET cache hit on file %s!", hydfs_filename)
+			local_file, err := os.Create(local_filename)
+			if err != nil {
+				fmt.Println("[ERROR] os create error:", err)
+			}
+			defer local_file.Close()
+			local_file.Write(data)
+			hydfs_log.Printf("[INFO] GET Wrote %s into %s from cache", hydfs_filename, local_filename)
+			return true, nil
+		}
+		hydfs_log.Printf("[INFO] GET cache miss on file %s!", hydfs_filename)
+	}
+
+	// make get rpc call to vm_address
+	_, target := getVMFileTarget(file_hash, vm_address)
+	if target == nil {
+		return false, fmt.Errorf("[ERROR] Replica_GET could not find node with address %s", vm_address)
+	}
+	get_rpc := &repl.RequestGetData{Filename: hydfs_filename}
+	hydfs_filedata := sendGetRPC(target, get_rpc)
+	if hydfs_filedata == nil {
+		return false, fmt.Errorf("Error: GetRPC Call had an error")
+	}
+
+	// add to cache
+	if enable_cache {
+		cache.addFile(hydfs_filename, hydfs_filedata)
+	}
+
+	// write get data to local_filename
+	local_file, err := os.Create(local_filename)
+	if err != nil {
+		fmt.Println("[ERROR] os create error:", err)
+	}
+	defer local_file.Close()
+	local_file.Write(hydfs_filedata)
+	hydfs_log.Printf("[INFO] Replica_GET Wrote %s into %s", hydfs_filename, local_filename)
+	return true, nil
+}
+
 func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	if !enoughMembers() {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
@@ -84,6 +162,10 @@ func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	// read local_file into memory and send append rpc
 	contents := readFile(local_filename)
 	file_hash := hashFilename(hydfs_filename)
+	// check cache for remove
+	if enable_cache {
+		cache.invalidateFile(hydfs_filename)
+	}
 	_, target := getReplicaFileTarget(file_hash)
 	data := &repl.FileBlock{Data: contents}
 	append_rpc := &repl.AppendData{Filename: hydfs_filename, Block: data}
@@ -199,6 +281,20 @@ func commandLoop() {
 			// TODO: merge
 		case "mem":
 			printMemberDict()
+		case "getfromreplica":
+			if len(commandParts) != 4 {
+				fmt.Println("usage: get VMAddress HyDFSfilename localfilename")
+				continue
+			}
+			vm_address := VM[commandParts[1]]
+			hydfs_filename := commandParts[2]
+			local_filename := commandParts[3]
+			_, err := hydfsVMGet(hydfs_filename, local_filename, vm_address)
+			if err != nil {
+				fmt.Println("Get error:", err)
+				continue
+			}
+			fmt.Printf("Get %s from VM Address %s into %s\n", hydfs_filename, vm_address, local_filename)
 		case "ls":
 			if len(commandParts) != 2 {
 				fmt.Println("usage: ls HyDFSfilename")
