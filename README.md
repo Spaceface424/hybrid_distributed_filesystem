@@ -6,7 +6,7 @@ Group Number 14
 
 Ryan Wu (rwu29), Oliver Rogalski (oliverr3)
 
-To run the MP, clone this repository into all of the virtual machines that will be used. Run main.go on the introducer process without the ip then provide the introducer IP to any joining processes. Use the -v flag to enable verbose output to stdout.
+To run the MP, clone this repository into all of the virtual machines that will be used. Run main.go on the introducer process without the ip then provide the introducer IP to any joining processes with the -i flag. Use the -v flag to enable verbose output to stdout.
 
 Example:
 ```
@@ -38,4 +38,4 @@ MP3 Commands:
 - store - Lists all files at the current node
 - getfromreplica [vmaddress] [hydfsfilename] [localfilename] - Reads an HYDFS file from a specified node to localfilename
 - list_mem - Prints the membership list of the node, including the hash ring ID
-- multiappend [hydfsfilename] [vmi ... vmj] [localfilenamei ... localfilenamej] - Launches appends from multiple nodes 
+- multiappend [hydfsfilename] [vmi ... vmj] files [localfilenamei ... localfilenamej] - Launches appends from multiple nodes 
