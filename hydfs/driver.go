@@ -9,7 +9,10 @@ import (
 	"hash/fnv"
 	"log"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/huandu/skiplist"
 )
@@ -70,6 +73,10 @@ func hydfsGet(hydfs_filename string, local_filename string) (bool, error) {
 		data := cache.getFile(hydfs_filename)
 		if data != nil {
 			hydfs_log.Printf("[INFO] GET cache hit on file %s!", hydfs_filename)
+			err := os.MkdirAll(filepath.Dir(local_filename), 0777)
+			if err != nil {
+				fmt.Println("[ERROR] os create error:", err)
+			}
 			local_file, err := os.Create(local_filename)
 			if err != nil {
 				fmt.Println("[ERROR] os create error:", err)
@@ -182,10 +189,18 @@ func handleMembershipChange(member_change_chan chan struct{}) {
 		// only make replication calls if primary files owned > 0 and enough members in group
 		if len(primary_replica_filehashes) > 0 && enoughMembers() {
 			hydfs_log.Println("[INFO] making replication requests")
+			var wg sync.WaitGroup
 			for _, repl_hash := range getReplicas() {
+				wg.Add(1)
 				target_replica := members.Get(repl_hash).Value.(*shared.MemberInfo)
-				go sendReplicationRPC(target_replica, primary_replica_filehashes)
+				go func() {
+					sendReplicationRPC(target_replica, primary_replica_filehashes)
+					wg.Done()
+				}()
 			}
+			mu.Unlock()
+			wg.Wait()
+			mu.Lock()
 		}
 
 		// check if files left replication range
@@ -306,8 +321,28 @@ func commandLoop() {
 				continue
 			}
 			multiappend(commandParts[1], vms, local_files)
+		case "load_dataset":
+			num_files, _ := strconv.Atoi(commandParts[1])
+			loadDataset(num_files, 4)
 		case "exp3":
-			loadDataset(10, 30)
+			num_files, _ := strconv.Atoi(commandParts[2])
+			percent_append, _ := strconv.Atoi(commandParts[3])
+			if commandParts[1] == "zipf" {
+				getExperiment(num_files, num_files*2, zipfianSample, percent_append)
+			} else {
+				getExperiment(num_files, num_files*2, uniformSample, percent_append)
+			}
+		case "clear_cache":
+			if enable_cache {
+				cache.clear()
+			}
+			fmt.Println("Cache cleared")
+		case "set_cache_size":
+			new_limit, _ := strconv.Atoi(commandParts[1])
+			if enable_cache {
+				cache.setLimit(new_limit)
+			}
+			fmt.Printf("Cache cleared and size set to %dKB\n", new_limit)
 		default:
 			fmt.Println("Unknown command...")
 		}

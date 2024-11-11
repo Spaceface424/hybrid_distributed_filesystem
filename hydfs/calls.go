@@ -97,9 +97,13 @@ func sendReplicationRPC(target *shared.MemberInfo, primary_replica_filehashes []
 
 	rpc_request_data := fillData(response_missing)
 	response_ack, err := client.RequestSend(ctx, rpc_request_data)
+	if err != nil {
+		hydfs_log.Println("[ERROR] Calling RPC Request Send error: ", err)
+		return false
+	}
 
 	elapsed := time.Since(start)
-	hydfs_log.Printf("[INFO] Re-replication took %v ms", elapsed.Milliseconds())
+	hydfs_log.Printf("[INFO] Re-replication took %v", elapsed)
 	return response_ack.OK
 }
 

@@ -3,8 +3,10 @@ package hydfs
 import (
 	crypto "crypto/rand"
 	"fmt"
+	"math"
 	"math/rand"
 	"os"
+	"sort"
 	"time"
 )
 
@@ -30,14 +32,61 @@ func loadDataset(num_files int, file_size_kb int) {
 	}
 }
 
-func getExperiment(num_files int, num_gets int, distribution string) {
+func getExperiment(num_files int, num_gets int, distribution func(int) int, percent_append int) {
+	times := make([]time.Duration, num_gets)
+	local_filename_append := "tmp/business_3.txt"
+	hydfs_base_filename := "experiment_file"
+	for i := range num_gets {
+		target_file_idx := distribution(num_files)
+		os.MkdirAll("tmp/experiment_get", 0777)
+		local_filename := fmt.Sprintf("tmp/experiment_get/%d_%s.txt", target_file_idx, hydfs_base_filename)
+		hydfs_filename := fmt.Sprintf("%d_%s", target_file_idx, hydfs_base_filename)
+		start := time.Now()
+		if rand.Intn(100) < percent_append {
+			res, _ := hydfsAppend(local_filename_append, hydfs_filename)
+			if !res {
+				fmt.Println("APPEND failed")
+			}
+		} else {
+			res, _ := hydfsGet(hydfs_filename, local_filename)
+			if !res {
+				fmt.Println("GET failed")
+			}
+		}
+		times[i] = time.Since(start)
+	}
+
+	var sum time.Duration
+	for _, d := range times {
+		sum += d
+	}
+	avg := sum / time.Duration(num_gets)
+
+	var squaredDiffs float64
+	avgFloat := float64(avg)
+	for _, d := range times {
+		diff := float64(d) - avgFloat
+		squaredDiffs += diff * diff
+	}
+	variance := squaredDiffs / float64(num_gets)
+	stdDev := time.Duration(math.Sqrt(variance))
+
+	sort.Slice(times, func(i, j int) bool {
+		return times[i] < times[j]
+	})
+
+	fmt.Printf("AVERAGE: %v\n", avg)
+	fmt.Printf("MEDIAN: %v\n", times[len(times)/2])
+	fmt.Printf("STD: %v\n", stdDev)
+	fmt.Printf("MAX: %v\n", times[len(times)-1])
+	fmt.Printf("MIN: %v\n", times[0])
 }
 
-func zipfianSample(upper uint64) uint64 {
-	z := rand.NewZipf(rand.New(rand.NewSource(time.Now().UnixNano())), 2, 1, upper)
-	return z.Uint64()
+func zipfianSample(upper int) int {
+	z := rand.NewZipf(rand.New(rand.NewSource(time.Now().UnixNano())), 2, 1, uint64(upper))
+	return int(z.Uint64())
 }
 
-func uniformSample(upper int) uint64 {
-	return uint64(rand.Intn(upper))
+func uniformSample(upper int) int {
+	return int(rand.Intn(upper))
 }

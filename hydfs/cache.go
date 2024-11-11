@@ -100,13 +100,14 @@ func (cache *LRU_cache) invalidateFile(filename string) {
 	hydfs_log.Printf("[INFO] Invalidating file %s from cache", filename)
 	for cur_node := cache.front; cur_node != nil; cur_node = cur_node.next {
 		if cur_node.key == filehash {
-			if cur_node == cache.front {
+			switch cur_node {
+			case cache.front:
 				cache.front = cur_node.next
 				cache.front.prev = nil
-			} else if cur_node == cache.back {
+			case cache.back:
 				cache.back = cache.back.prev
 				cache.back.next = nil
-			} else {
+			default:
 				cur_node.prev.next = cur_node.next
 				cur_node.next.prev = cur_node.prev
 			}
@@ -117,4 +118,16 @@ func (cache *LRU_cache) invalidateFile(filename string) {
 	evict_size := len(evict_element.Value.([]byte))
 	cache.size -= evict_size
 	cache.list.Remove(filehash)
+}
+
+func (cache *LRU_cache) clear() {
+	cache.list.Init()
+	cache.front = nil
+	cache.back = nil
+	cache.size = 0
+}
+
+func (cache *LRU_cache) setLimit(new_limit_kb int) {
+	cache.clear()
+	cache.limit = new_limit_kb * 1000
 }
