@@ -233,3 +233,48 @@ func sendMultiAppendReqeustRPC(target *shared.MemberInfo, hydfs_filename string,
 		fmt.Printf("FAILED MultiAppend to node %d hash %d for hydfs_file: %s to local_file: %s\n", target.ID, target.Hash, hydfs_filename, local_filename)
 	}
 }
+
+func sendMergeRequestRPC(target *shared.MemberInfo, request_files *repl.RequestFiles) bool {
+	target_addr := strings.Split(target.Address, ":")[0] + ":" + GRPC_PORT
+	conn, err := grpc.NewClient(target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		hydfs_log.Printf("[WARNING] gRPC did not connect: %v", err)
+		return false
+	}
+	defer conn.Close()
+
+	client := repl.NewReplicationClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	response_missing, err := client.RequestAsk(ctx, request_files)
+	if err != nil {
+		hydfs_log.Printf("[WARNING] gRPC call error: %v", err)
+		return false
+	}
+
+	rpc_request_data := fillData(response_missing)
+	response_ack, err := client.RequestSend(ctx, rpc_request_data)
+	return response_ack.OK
+}
+
+func sendStartMergeRPC(target *shared.MemberInfo, hydfs_filename *repl.RequestGetData) bool {
+	target_addr := strings.Split(target.Address, ":")[0] + ":" + GRPC_PORT
+	conn, err := grpc.NewClient(target_addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		hydfs_log.Printf("[WARNING] gRPC did not connect: %v", err)
+		return false
+	}
+	defer conn.Close()
+
+	client := repl.NewReplicationClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	response_ack, err := client.RequestStartMerge(ctx, hydfs_filename)
+	if err != nil {
+		hydfs_log.Printf("[WARNING] gRPC call error: %v", err)
+		return false
+	}
+	return response_ack.OK
+}

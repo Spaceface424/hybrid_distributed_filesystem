@@ -214,3 +214,9 @@ func (s *HydfsRPCserver) RequestMultiAppend(ctx context.Context, request *repl.M
 	ok, _ := hydfsAppend(request.LocalFilename, request.HydfsFilename)
 	return &repl.RequestAck{OK: ok}, nil
 }
+
+func (s *HydfsRPCserver) RequestStartMerge(ctx context.Context, merge_rpc *repl.File) (*repl.RequestAck, error) {
+	hydfs_log.Printf("[INFO] RPC MultiAppend received request for hydfs file %s to local file %s", request.HydfsFilename, request.LocalFilename)
+	ok, _ := hydfsAppend(request.LocalFilename, request.HydfsFilename)
+	return &repl.RequestAck{OK: ok}, nil
+}

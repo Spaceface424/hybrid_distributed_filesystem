@@ -152,12 +152,35 @@ func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	return sendAppendRPC(target, append_rpc), nil
 }
 
-func hydfsMerge(filepath string) (bool, error) {
+func hydfsMerge(hydfs_filename string) (bool, error) {
 	// TODO:
 	if !enoughMembers() {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
-	return false, nil
+	// need to send an RPC to other nodes containing all curr file blocks
+	file_hash := hashFilename(hydfs_filename)
+	if enable_cache {
+		cache.invalidateFile(hydfs_filename)
+	}
+	// curr_file := files.Get(file_hash).Value.(*File)
+	rpc_files := make([]*repl.File, 0)
+	rpc_files = append(rpc_files, &repl.File{Filename: hydfs_filename, Blocks: getBlocks(hydfs_filename, false)})
+	rpc_request_files := &repl.RequestFiles{Files: rpc_files}
+	curr_node := members.Find(file_hash)
+	if curr_node == nil {
+		curr_node = members.Front()
+	}
+	for range REPL_FACTOR {
+		target := curr_node.Value.(*shared.MemberInfo)
+		go sendMergeRequestRPC(target, rpc_request_files)
+		start_merge := &repl.RequestGetData{Filename: hydfs_filename}
+		go sendStartMergeRPC(target, start_merge)
+		curr_node = curr_node.Next()
+		if curr_node == nil {
+			curr_node = members.Front()
+		}
+	}
+	return true, nil
 }
 
 // Handle events from membership change channel
