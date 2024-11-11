@@ -193,6 +193,20 @@ func getPrimaryReplicas(filehash uint32) []uint32 {
 	return res
 }
 
+// get all replicas for a given filehash
+func getAllPrimaryReplicas(filehash uint32) []uint32 {
+	res := make([]uint32, REPL_FACTOR)
+	cur_elem := members.Find(filehash)
+	for i := range REPL_FACTOR {
+		if cur_elem == nil {
+			cur_elem = members.Front()
+		}
+		res[i] = cur_elem.Key().(uint32)
+		cur_elem = cur_elem.Next()
+	}
+	return res
+}
+
 // return main target node for a file
 func getMainFileTarget(file_hash uint32) (uint32, *shared.MemberInfo) {
 	mu.Lock()

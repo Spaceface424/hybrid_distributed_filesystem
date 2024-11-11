@@ -82,6 +82,28 @@ func getExperiment(num_files int, num_gets int, distribution func(int) int, perc
 	fmt.Printf("MIN: %v\n", times[0])
 }
 
+func mergeExperiment(num_appends int, num_clients int, append_size_kb int) {
+	hydfs_filename := "exp2"
+	local_filenames := make([]string, num_clients)
+	vms := make([]string, num_clients)
+	for i := range num_clients {
+		rand_vm := VM[fmt.Sprintf("m%d", rand.Intn(members.Len())+1)] + ":9000"
+		fmt.Println("rand_vm = ", rand_vm)
+		vms[i] = rand_vm
+		local_filenames[i] = fmt.Sprintf("tmp/%dKB.txt", append_size_kb)
+	}
+	for range num_appends {
+		multiappend(hydfs_filename, vms, local_filenames)
+	}
+
+	time.Sleep(time.Second * 10)
+
+	start := time.Now()
+	hydfsMerge(hydfs_filename)
+	latency := time.Since(start)
+	fmt.Printf("Merge took %v\n", latency)
+}
+
 func zipfianSample(upper int) int {
 	z := rand.NewZipf(rand.New(rand.NewSource(time.Now().UnixNano())), 2, 1, uint64(upper))
 	return int(z.Uint64())

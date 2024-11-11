@@ -159,12 +159,24 @@ func hydfsAppend(local_filename string, hydfs_filename string) (bool, error) {
 	return sendAppendRPC(target, append_rpc), nil
 }
 
-func hydfsMerge(filepath string) (bool, error) {
-	// TODO:
+// send re-replication requests to all replicas of a file
+func hydfsMerge(hydfs_filepath string) (bool, error) {
 	if !enoughMembers() {
 		return false, fmt.Errorf("Error: %w with current number of members: %d", ErrNotEnoughMembers, members.Len())
 	}
-	return false, nil
+	var wg sync.WaitGroup
+	filehash := hashFilename(hydfs_filepath)
+	filehash_list := []uint32{filehash}
+	for _, member_hash := range getAllPrimaryReplicas(filehash) {
+		wg.Add(1)
+		target := members.Get(member_hash).Value.(*shared.MemberInfo)
+		go func() {
+			sendReplicationRPC(target, filehash_list)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	return true, nil
 }
 
 // Handle events from membership change channel
@@ -273,7 +285,7 @@ func commandLoop() {
 				fmt.Println("usage: merge HyDFSfilename")
 				continue
 			}
-			// TODO: merge
+			hydfsMerge(commandParts[1])
 		case "mem":
 			printMemberDict()
 		case "getfromreplica":
@@ -343,6 +355,8 @@ func commandLoop() {
 				cache.setLimit(new_limit)
 			}
 			fmt.Printf("Cache cleared and size set to %dKB\n", new_limit)
+		case "exp2":
+			mergeExperiment(1000, 1, 40)
 		default:
 			fmt.Println("Unknown command...")
 		}
